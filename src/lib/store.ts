@@ -103,6 +103,13 @@ export async function markRepliesReadByCoach(noteIds: string[]): Promise<void> {
     .in("id", noteIds);
 }
 
+export async function clearReply(noteId: string): Promise<void> {
+  await supabase
+    .from("coach_notes")
+    .update({ reply: null, replied_at: null })
+    .eq("id", noteId);
+}
+
 export async function replyToNote(noteId: string, reply: string): Promise<void> {
   await supabase
     .from("coach_notes")

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import type { CoachNote, UserRole } from "@/lib/types";
-import { replyToNote, markNotesReadByClient, markRepliesReadByCoach } from "@/lib/store";
+import { replyToNote, markNotesReadByClient, markRepliesReadByCoach, deleteCoachNote, clearReply } from "@/lib/store";
 
 interface CoachNotesProps {
   notes: CoachNote[];
@@ -37,6 +37,16 @@ export default function CoachNotes({ notes, role, onUpdate }: CoachNotesProps) {
     if (onUpdate) onUpdate();
   }
 
+  async function handleDeleteNote(noteId: string) {
+    await deleteCoachNote(noteId);
+    if (onUpdate) onUpdate();
+  }
+
+  async function handleDeleteReply(noteId: string) {
+    await clearReply(noteId);
+    if (onUpdate) onUpdate();
+  }
+
   return (
     <div className="bg-card border-2 border-border rounded-2xl p-4">
       <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-3">Coach Notes</h3>
@@ -58,6 +68,14 @@ export default function CoachNotes({ notes, role, onUpdate }: CoachNotesProps) {
                       New
                     </button>
                   )}
+                  {role === "coach" && (
+                    <button
+                      onClick={() => handleDeleteNote(note.id)}
+                      className="text-muted hover:text-danger text-[10px] font-black transition ml-auto"
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
                 <p className="text-sm font-bold whitespace-pre-wrap text-white">{note.note}</p>
                 <p className="text-xs font-bold text-muted mt-1">
@@ -76,6 +94,14 @@ export default function CoachNotes({ notes, role, onUpdate }: CoachNotesProps) {
                         className="bg-danger text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase hover:bg-danger/80 transition active:scale-95"
                       >
                         New
+                      </button>
+                    )}
+                    {role === "client" && (
+                      <button
+                        onClick={() => handleDeleteReply(note.id)}
+                        className="text-muted hover:text-danger text-[10px] font-black transition ml-auto"
+                      >
+                        Delete
                       </button>
                     )}
                   </div>
