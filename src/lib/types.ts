@@ -50,6 +50,14 @@ export interface WhoopData {
   sleep_cycles?: number;
 }
 
+export interface MealMacros {
+  meal: string;
+  calories: number | null;
+  protein: number | null;
+  carbs: number | null;
+  fats: number | null;
+}
+
 export interface DailyLog {
   id: string;
   user_id: string;
@@ -62,6 +70,7 @@ export interface DailyLog {
   food_json: FoodEntry[];
   exercise_json: ExerciseEntry[];
   whoop_json: WhoopData;
+  meals_json: MealMacros[];
   client_notes: string | null;
   created_at: string;
 }

@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import type { DailyLog, CoachNote, GearEntry, FoodEntry, ExerciseEntry, WhoopData } from "./types";
+import type { DailyLog, CoachNote, GearEntry, FoodEntry, ExerciseEntry, WhoopData, MealMacros } from "./types";
 
 // Daily Logs
 
@@ -32,6 +32,7 @@ export async function upsertLog(payload: {
   food_json: FoodEntry[];
   exercise_json: ExerciseEntry[];
   whoop_json: WhoopData;
+  meals_json: MealMacros[];
   client_notes: string | null;
 }): Promise<DailyLog | null> {
   const { data } = await supabase

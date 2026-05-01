@@ -5,20 +5,23 @@ import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getLogByDate, upsertLog } from "@/lib/store";
-import type { FoodEntry } from "@/lib/types";
+import type { FoodEntry, MealMacros } from "@/lib/types";
 import Nav from "@/components/Nav";
 import DateSelector from "@/components/DateSelector";
 
 const inputClass = "w-full bg-background border-2 border-border rounded-xl px-3 py-3 text-sm font-bold focus:outline-none focus:border-accent focus:shadow-[0_0_15px_var(--color-accent-glow)] transition-all placeholder:text-muted/50";
 
+const MEALS = ["Breakfast", "AM Snack", "Lunch", "PM Snack", "Dinner"] as const;
+
+type MealFields = { calories: string; protein: string; carbs: string; fats: string };
+const emptyMeal: MealFields = { calories: "", protein: "", carbs: "", fats: "" };
+
 export default function LogPage() {
   const { auth } = useAuth();
   const router = useRouter();
   const [date, setDate] = useState(new Date());
-  const [calories, setCalories] = useState("");
-  const [protein, setProtein] = useState("");
-  const [carbs, setCarbs] = useState("");
-  const [fats, setFats] = useState("");
+  const [meals, setMeals] = useState<Record<string, MealFields>>({});
+  const [activeMeal, setActiveMeal] = useState<string>(MEALS[0]);
   const [food, setFood] = useState<FoodEntry[]>([]);
   const [clientNotes, setClientNotes] = useState("");
   const [isUpdate, setIsUpdate] = useState(false);
@@ -28,6 +31,7 @@ export default function LogPage() {
   useEffect(() => {
     if (!auth) { router.replace("/login"); return; }
     if (auth.role === "coach") { router.replace("/coach"); }
+    window.scrollTo(0, 0);
   }, [auth, router]);
 
   useEffect(() => {
@@ -41,19 +45,68 @@ export default function LogPage() {
 
     if (log) {
       setIsUpdate(true);
-      setCalories(log.calories?.toString() ?? "");
-      setProtein(log.protein?.toString() ?? "");
-      setCarbs(log.carbs?.toString() ?? "");
-      setFats(log.fats?.toString() ?? "");
       setFood(log.food_json ?? []);
       setClientNotes(log.client_notes ?? "");
+
+      const loaded: Record<string, MealFields> = {};
+      if (log.meals_json && log.meals_json.length > 0) {
+        for (const m of log.meals_json) {
+          loaded[m.meal] = {
+            calories: m.calories?.toString() ?? "",
+            protein: m.protein?.toString() ?? "",
+            carbs: m.carbs?.toString() ?? "",
+            fats: m.fats?.toString() ?? "",
+          };
+        }
+      } else if (log.calories || log.protein || log.carbs || log.fats) {
+        loaded["Breakfast"] = {
+          calories: log.calories?.toString() ?? "",
+          protein: log.protein?.toString() ?? "",
+          carbs: log.carbs?.toString() ?? "",
+          fats: log.fats?.toString() ?? "",
+        };
+      }
+      setMeals(loaded);
     } else {
       setIsUpdate(false);
-      setCalories(""); setProtein(""); setCarbs(""); setFats("");
+      setMeals({});
       setFood([]);
       setClientNotes("");
     }
   }
+
+  function getMeal(name: string): MealFields {
+    return meals[name] ?? emptyMeal;
+  }
+
+  function updateMealField(meal: string, field: keyof MealFields, value: string) {
+    setMeals((prev) => ({
+      ...prev,
+      [meal]: { ...(prev[meal] ?? emptyMeal), [field]: value },
+    }));
+  }
+
+  function mealHasData(name: string): boolean {
+    const m = meals[name];
+    if (!m) return false;
+    return !!(m.calories || m.protein || m.carbs || m.fats);
+  }
+
+  const totals = MEALS.reduce(
+    (acc, meal) => {
+      const m = meals[meal];
+      if (!m) return acc;
+      return {
+        calories: acc.calories + (m.calories ? Number(m.calories) : 0),
+        protein: acc.protein + (m.protein ? Number(m.protein) : 0),
+        carbs: acc.carbs + (m.carbs ? Number(m.carbs) : 0),
+        fats: acc.fats + (m.fats ? Number(m.fats) : 0),
+      };
+    },
+    { calories: 0, protein: 0, carbs: 0, fats: 0 }
+  );
+
+  const hasMealData = MEALS.some(mealHasData);
 
   function addFoodRow() { setFood([...food, { meal: "", description: "" }]); }
   function updateFood(i: number, field: keyof FoodEntry, value: string) {
@@ -65,16 +118,30 @@ export default function LogPage() {
     e.preventDefault();
     setSaving(true);
 
+    const mealsJson: MealMacros[] = MEALS
+      .filter(mealHasData)
+      .map((meal) => {
+        const m = meals[meal]!;
+        return {
+          meal,
+          calories: m.calories ? Number(m.calories) : null,
+          protein: m.protein ? Number(m.protein) : null,
+          carbs: m.carbs ? Number(m.carbs) : null,
+          fats: m.fats ? Number(m.fats) : null,
+        };
+      });
+
     await upsertLog({
       date: format(date, "yyyy-MM-dd"),
-      calories: calories ? Number(calories) : null,
-      protein: protein ? Number(protein) : null,
-      carbs: carbs ? Number(carbs) : null,
-      fats: fats ? Number(fats) : null,
+      calories: hasMealData ? totals.calories : null,
+      protein: hasMealData ? totals.protein : null,
+      carbs: hasMealData ? totals.carbs : null,
+      fats: hasMealData ? totals.fats : null,
       gear_json: [],
       food_json: food.filter((f) => f.description.trim()),
       exercise_json: [],
       whoop_json: {},
+      meals_json: mealsJson,
       client_notes: clientNotes || null,
     });
 
@@ -84,6 +151,8 @@ export default function LogPage() {
   }
 
   if (!auth || auth.role !== "client") return null;
+
+  const current = getMeal(activeMeal);
 
   return (
     <div className="min-h-screen pb-8">
@@ -95,27 +164,104 @@ export default function LogPage() {
         </div>
 
         <form onSubmit={handleSave} className="space-y-5">
-          {/* Nutrition */}
+          {/* Nutrition by Meal */}
           <div className="bg-card border-2 border-border rounded-2xl p-4 space-y-4">
             <h2 className="text-xs font-black text-muted uppercase tracking-wider">Nutrition</h2>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-black text-muted uppercase tracking-wider mb-1">Calories</label>
-                <input type="number" value={calories} onChange={(e) => setCalories(e.target.value)} className={inputClass} placeholder="0" />
-              </div>
-              <div>
-                <label className="block text-xs font-black text-muted uppercase tracking-wider mb-1">Protein (g)</label>
-                <input type="number" value={protein} onChange={(e) => setProtein(e.target.value)} className={inputClass} placeholder="0" />
-              </div>
-              <div>
-                <label className="block text-xs font-black text-muted uppercase tracking-wider mb-1">Carbs (g)</label>
-                <input type="number" value={carbs} onChange={(e) => setCarbs(e.target.value)} className={inputClass} placeholder="0" />
-              </div>
-              <div>
-                <label className="block text-xs font-black text-muted uppercase tracking-wider mb-1">Fats (g)</label>
-                <input type="number" value={fats} onChange={(e) => setFats(e.target.value)} className={inputClass} placeholder="0" />
+
+            {/* Meal selector buttons */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+              {MEALS.map((meal) => (
+                <button
+                  key={meal}
+                  type="button"
+                  onClick={() => setActiveMeal(meal)}
+                  className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 relative ${
+                    activeMeal === meal
+                      ? "bg-accent text-white shadow-[0_0_15px_var(--color-accent-glow)]"
+                      : mealHasData(meal)
+                      ? "bg-success/20 text-success border-2 border-success/30"
+                      : "bg-background border-2 border-border text-muted hover:text-white hover:border-accent"
+                  }`}
+                >
+                  {meal}
+                </button>
+              ))}
+            </div>
+
+            {/* Active meal inputs */}
+            <div className="border-l-2 border-accent pl-3 space-y-3">
+              <p className="text-xs font-black text-accent uppercase tracking-wider">{activeMeal}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-black text-muted uppercase tracking-wider mb-1">Calories</label>
+                  <input type="number" value={current.calories} onChange={(e) => updateMealField(activeMeal, "calories", e.target.value)} className={inputClass} placeholder="0" />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-muted uppercase tracking-wider mb-1">Protein (g)</label>
+                  <input type="number" value={current.protein} onChange={(e) => updateMealField(activeMeal, "protein", e.target.value)} className={inputClass} placeholder="0" />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-muted uppercase tracking-wider mb-1">Carbs (g)</label>
+                  <input type="number" value={current.carbs} onChange={(e) => updateMealField(activeMeal, "carbs", e.target.value)} className={inputClass} placeholder="0" />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-muted uppercase tracking-wider mb-1">Fats (g)</label>
+                  <input type="number" value={current.fats} onChange={(e) => updateMealField(activeMeal, "fats", e.target.value)} className={inputClass} placeholder="0" />
+                </div>
               </div>
             </div>
+
+            {/* Per-meal summary */}
+            {hasMealData && (
+              <div className="space-y-2 pt-2 border-t border-border">
+                {MEALS.filter(mealHasData).map((meal) => {
+                  const m = meals[meal]!;
+                  return (
+                    <button
+                      key={meal}
+                      type="button"
+                      onClick={() => setActiveMeal(meal)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-all active:scale-[0.98] ${
+                        activeMeal === meal ? "bg-accent/10 border border-accent/30" : "hover:bg-background"
+                      }`}
+                    >
+                      <span className="text-xs font-black text-white uppercase tracking-wider">{meal}</span>
+                      <span className="text-xs font-bold text-muted">
+                        {m.calories || 0}
+                        <span className="text-white/40"> cal</span>
+                        {" · "}
+                        {m.protein || 0}
+                        <span className="text-cyan/60">p</span>
+                        {" · "}
+                        {m.carbs || 0}
+                        <span className="text-warning/60">c</span>
+                        {" · "}
+                        {m.fats || 0}
+                        <span className="text-pink/60">f</span>
+                      </span>
+                    </button>
+                  );
+                })}
+
+                {/* Totals */}
+                <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-background border-2 border-border">
+                  <span className="text-xs font-black text-accent uppercase tracking-wider">Total</span>
+                  <span className="text-xs font-black">
+                    <span className="text-white">{totals.calories}</span>
+                    <span className="text-white/40"> cal</span>
+                    {" · "}
+                    <span className="text-cyan">{totals.protein}</span>
+                    <span className="text-cyan/60">p</span>
+                    {" · "}
+                    <span className="text-warning">{totals.carbs}</span>
+                    <span className="text-warning/60">c</span>
+                    {" · "}
+                    <span className="text-pink">{totals.fats}</span>
+                    <span className="text-pink/60">f</span>
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Food Log */}
