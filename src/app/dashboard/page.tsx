@@ -17,24 +17,26 @@ import WhoopConnect, { getWhoopForDate } from "@/components/WhoopConnect";
 
 const REFRESH_INTERVAL = 2 * 60 * 60 * 1000;
 
-function Overlay({ title, badge, children, defaultOpen = false }: { title: string; badge?: string; children: React.ReactNode; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen);
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
   return (
-    <div className="bg-card border-2 border-border rounded-2xl overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-3 active:bg-background transition"
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-black text-white uppercase tracking-wider">{title}</span>
-          {badge && (
-            <span className="bg-danger text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase animate-pulse">{badge}</span>
-          )}
+    <div className="fixed inset-0 z-[100] flex flex-col">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative flex-1 flex flex-col mt-14 sm:mt-16 bg-background rounded-t-3xl overflow-hidden animate-slideUp">
+        <div className="flex items-center justify-between px-4 py-3 border-b-2 border-border flex-shrink-0">
+          <h2 className="text-sm font-black text-white uppercase tracking-wider">{title}</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-card border border-border text-muted hover:text-white text-sm font-black transition active:scale-90">✕</button>
         </div>
-        <span className={`text-muted text-sm font-black transition-transform ${open ? "rotate-180" : ""}`}>▼</span>
-      </button>
-      {open && <div className="px-4 pb-4 pt-1">{children}</div>}
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
@@ -49,6 +51,7 @@ export default function DashboardPage() {
   const [whoopData, setWhoopData] = useState<WhoopData>({});
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [activeModal, setActiveModal] = useState<"whoop" | "gear" | "notes" | null>(null);
 
   useEffect(() => {
     if (!auth) { router.replace("/login"); return; }
@@ -93,6 +96,10 @@ export default function DashboardPage() {
   };
 
   const unreadNotes = notes.filter((n) => !n.read_by_client).length;
+  const recoveryColor = mergedWhoop.recovery != null
+    ? mergedWhoop.recovery >= 67 ? "text-success" : mergedWhoop.recovery >= 34 ? "text-warning" : "text-danger"
+    : "text-muted";
+  const today = DAYS[new Date().getDay()];
 
   return (
     <div className="min-h-screen pb-8">
@@ -124,13 +131,58 @@ export default function DashboardPage() {
           <>
             <MacroCards log={log} />
 
-            <Overlay title="WHOOP">
-              <WhoopCard data={mergedWhoop} embedded />
-            </Overlay>
+            {/* Square overlay cards */}
+            <div className="grid grid-cols-3 gap-3">
+              {/* WHOOP */}
+              <button
+                onClick={() => setActiveModal("whoop")}
+                className="bg-card border-2 border-border rounded-2xl p-3 text-left transition-all active:scale-95 hover:border-accent aspect-square flex flex-col justify-between"
+              >
+                <p className="text-[10px] font-black text-muted uppercase tracking-wider">WHOOP</p>
+                <div>
+                  {mergedWhoop.recovery != null ? (
+                    <p className={`text-2xl sm:text-3xl font-black ${recoveryColor}`}>{mergedWhoop.recovery}%</p>
+                  ) : (
+                    <p className="text-lg font-black text-muted/40">—</p>
+                  )}
+                  {mergedWhoop.strain != null && (
+                    <p className="text-[10px] font-bold text-muted mt-0.5">Strain {mergedWhoop.strain}</p>
+                  )}
+                  {mergedWhoop.sleep != null && (
+                    <p className="text-[10px] font-bold text-muted">{mergedWhoop.sleep}h sleep</p>
+                  )}
+                </div>
+              </button>
 
-            <Overlay title="Gear & Protocol">
-              <GearProtocol embedded />
-            </Overlay>
+              {/* Gear */}
+              <button
+                onClick={() => setActiveModal("gear")}
+                className="bg-card border-2 border-border rounded-2xl p-3 text-left transition-all active:scale-95 hover:border-accent aspect-square flex flex-col justify-between"
+              >
+                <p className="text-[10px] font-black text-muted uppercase tracking-wider">Gear</p>
+                <div>
+                  <p className="text-2xl sm:text-3xl font-black text-pink">{today}</p>
+                  <p className="text-[10px] font-bold text-muted mt-0.5">Tap to view</p>
+                </div>
+              </button>
+
+              {/* Coach Notes */}
+              <button
+                onClick={() => setActiveModal("notes")}
+                className="bg-card border-2 border-border rounded-2xl p-3 text-left transition-all active:scale-95 hover:border-accent aspect-square flex flex-col justify-between relative"
+              >
+                <p className="text-[10px] font-black text-muted uppercase tracking-wider">Notes</p>
+                {unreadNotes > 0 && (
+                  <span className="absolute top-2 right-2 bg-danger text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                    {unreadNotes}
+                  </span>
+                )}
+                <div>
+                  <p className="text-2xl sm:text-3xl font-black text-accent">{notes.length}</p>
+                  <p className="text-[10px] font-bold text-muted mt-0.5">{notes.length === 1 ? "note" : "notes"} today</p>
+                </div>
+              </button>
+            </div>
 
             {log?.client_notes && (
               <div className="bg-card border-2 border-border rounded-2xl p-4">
@@ -139,14 +191,27 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <Overlay title="Coach Notes" badge={unreadNotes > 0 ? `${unreadNotes} new` : undefined}>
-              <CoachNotes notes={notes} role="client" onUpdate={loadData} embedded />
-            </Overlay>
-
             <TrendChart logs={recentLogs} />
           </>
         )}
       </main>
+
+      {/* Modals */}
+      {activeModal === "whoop" && (
+        <Modal title="WHOOP" onClose={() => setActiveModal(null)}>
+          <WhoopCard data={mergedWhoop} embedded />
+        </Modal>
+      )}
+      {activeModal === "gear" && (
+        <Modal title="Gear & Protocol" onClose={() => setActiveModal(null)}>
+          <GearProtocol embedded />
+        </Modal>
+      )}
+      {activeModal === "notes" && (
+        <Modal title="Coach Notes" onClose={() => setActiveModal(null)}>
+          <CoachNotes notes={notes} role="client" onUpdate={loadData} embedded />
+        </Modal>
+      )}
     </div>
   );
 }
