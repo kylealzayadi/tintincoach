@@ -229,62 +229,6 @@ export default function LogPage() {
               </div>
             </div>
 
-            {/* Per-meal summary */}
-            {hasMealData && (
-              <div className="space-y-2 pt-2 border-t border-border">
-                {MEALS.filter(mealHasData).map((meal) => {
-                  const m = meals[meal]!;
-                  return (
-                    <button
-                      key={meal}
-                      type="button"
-                      onClick={() => setActiveMeal(meal)}
-                      className={`w-full px-3 py-2 rounded-xl text-left transition-all active:scale-[0.98] ${
-                        activeMeal === meal ? "bg-accent/10 border border-accent/30" : "hover:bg-background"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-black text-white uppercase tracking-wider">{meal}</span>
-                        <span className="text-xs font-bold text-muted">
-                          {m.calories || 0}
-                          <span className="text-white/40"> cal</span>
-                          {" · "}
-                          {m.protein || 0}
-                          <span className="text-cyan/60">p</span>
-                          {" · "}
-                          {m.carbs || 0}
-                          <span className="text-warning/60">c</span>
-                          {" · "}
-                          {m.fats || 0}
-                          <span className="text-pink/60">f</span>
-                        </span>
-                      </div>
-                      {m.description && (
-                        <p className="text-[11px] font-bold text-muted/70 mt-0.5 truncate">{m.description}</p>
-                      )}
-                    </button>
-                  );
-                })}
-
-                {/* Totals */}
-                <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-background border-2 border-border">
-                  <span className="text-xs font-black text-accent uppercase tracking-wider">Total</span>
-                  <span className="text-xs font-black">
-                    <span className="text-white">{totals.calories}</span>
-                    <span className="text-white/40"> cal</span>
-                    {" · "}
-                    <span className="text-cyan">{totals.protein}</span>
-                    <span className="text-cyan/60">p</span>
-                    {" · "}
-                    <span className="text-warning">{totals.carbs}</span>
-                    <span className="text-warning/60">c</span>
-                    {" · "}
-                    <span className="text-pink">{totals.fats}</span>
-                    <span className="text-pink/60">f</span>
-                  </span>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Notes */}
