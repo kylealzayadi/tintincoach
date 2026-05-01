@@ -77,22 +77,18 @@ export default function DashboardPage() {
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-5">
         <div className="flex flex-col gap-4">
           <div>
-            <h1 className="text-2xl font-black flex items-center gap-2">
-              <span
-                className="text-2xl sm:text-3xl font-black uppercase tracking-wider animate-rainbow"
-                style={{
-                  backgroundImage: "linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00aaff, #8800ff, #ff00ff, #ff0000)",
-                  backgroundSize: "200% 100%",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                }}
-              >
-                Client
-              </span>
-              <span>Dashboard</span>
+            <h1
+              className="text-2xl sm:text-3xl font-black uppercase tracking-wider animate-rainbow"
+              style={{
+                backgroundImage: "linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00aaff, #8800ff, #ff00ff, #ff0000)",
+                backgroundSize: "200% 100%",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              Client Dashboard
             </h1>
-            <p className="text-xs font-bold text-muted/60 mt-1">Auto-refreshes every 2 hrs for accuracy</p>
           </div>
           <DateSelector date={date} onChange={setDate} />
         </div>

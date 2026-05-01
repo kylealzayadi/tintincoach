@@ -69,6 +69,11 @@ export default function WhoopCard({ data }: WhoopCardProps) {
 
   return (
     <div className="space-y-3">
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-sm font-black text-white uppercase tracking-wider">WHOOP</h2>
+        <p className="text-[10px] font-bold text-muted/60">Auto-refreshes every 2 hrs</p>
+      </div>
+
       {/* Recovery */}
       {hasRecovery && (
         <div className="bg-card border-2 border-border rounded-2xl p-4 space-y-3">

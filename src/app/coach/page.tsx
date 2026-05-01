@@ -35,13 +35,6 @@ export default function CoachPage() {
   const [posting, setPosting] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-  const [lastViewed] = useState(() => {
-    if (typeof window === "undefined") return null;
-    const ts = localStorage.getItem("tintin_coach_last_viewed");
-    localStorage.setItem("tintin_coach_last_viewed", new Date().toISOString());
-    return ts;
-  });
 
   useEffect(() => {
     if (!auth) { router.replace("/login"); return; }
@@ -75,7 +68,6 @@ export default function CoachPage() {
     setNotes(notesData);
     setRecentLogs(trendsData);
     setUnreadCount(unread);
-    setLastRefresh(new Date());
     setLoading(false);
   }, [date]);
 
@@ -119,32 +111,18 @@ export default function CoachPage() {
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-5">
         <div className="flex flex-col gap-4">
           <div>
-            <h1 className="text-2xl font-black flex items-center gap-2">
-              <span
-                className="text-2xl sm:text-3xl font-black uppercase tracking-wider animate-rainbow"
-                style={{
-                  backgroundImage: "linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00aaff, #8800ff, #ff00ff, #ff0000)",
-                  backgroundSize: "200% 100%",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                }}
-              >
-                Coach
-              </span>
-              <span>View</span>
+            <h1
+              className="text-2xl sm:text-3xl font-black uppercase tracking-wider animate-rainbow"
+              style={{
+                backgroundImage: "linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00aaff, #8800ff, #ff00ff, #ff0000)",
+                backgroundSize: "200% 100%",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              Coach View
             </h1>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
-              {lastViewed && (
-                <p className="text-xs font-bold text-muted">
-                  Last viewed: {format(new Date(lastViewed), "MMM d, h:mm a")}
-                </p>
-              )}
-              <p className="text-xs font-bold text-muted/60">
-                Auto-refreshes every 2 hrs for accuracy
-                {lastRefresh && <> &middot; Last: {format(lastRefresh, "h:mm a")}</>}
-              </p>
-            </div>
           </div>
           <DateSelector date={date} onChange={setDate} />
         </div>
