@@ -108,23 +108,31 @@ export default function DashboardPage() {
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-5">
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="bg-accent hover:bg-accent-hover px-4 py-2 rounded-xl text-sm font-black uppercase tracking-wider transition-all active:scale-95 hover:shadow-[0_0_20px_var(--color-accent-glow)]"
-            >
-              <span
-                className="animate-rainbow"
-                style={{
-                  backgroundImage: "linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00aaff, #8800ff, #ff00ff, #ff0000)",
-                  backgroundSize: "200% 100%",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                }}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => router.push("/dashboard")}
+                className="bg-accent hover:bg-accent-hover px-4 py-2 rounded-xl text-sm font-black uppercase tracking-wider transition-all active:scale-95 hover:shadow-[0_0_20px_var(--color-accent-glow)]"
               >
-                Client Dashboard
-              </span>
-            </button>
+                <span
+                  className="animate-rainbow"
+                  style={{
+                    backgroundImage: "linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00aaff, #8800ff, #ff00ff, #ff0000)",
+                    backgroundSize: "200% 100%",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                  }}
+                >
+                  Client Dashboard
+                </span>
+              </button>
+              <button
+                onClick={() => router.push("/log")}
+                className="bg-accent hover:bg-accent-hover text-white px-4 py-2 rounded-xl text-sm font-black uppercase tracking-wider transition-all active:scale-95 hover:shadow-[0_0_20px_var(--color-accent-glow)]"
+              >
+                Log
+              </button>
+            </div>
             <div className="flex bg-card border-2 border-border rounded-xl overflow-hidden">
               <button
                 onClick={() => { setViewMode("overlay"); setExpanded(null); }}
@@ -215,7 +223,7 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <MacroCards log={log} selectedMeal={activeMeal} />
+            <MacroCards log={log} selectedMeal={activeMeal} clientNotes={log?.client_notes} />
 
             {/* Square overlay cards */}
             <div className="grid grid-cols-3 gap-3">
@@ -315,13 +323,6 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {log?.client_notes && (
-              <div className="bg-card border-2 border-border rounded-2xl p-4">
-                <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-2">Notes</h3>
-                <p className="text-sm font-bold whitespace-pre-wrap text-white">{log.client_notes}</p>
-              </div>
-            )}
-
             <TrendChart logs={recentLogs} />
           </>
         ) : (
@@ -381,17 +382,10 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <MacroCards log={log} selectedMeal={activeMeal} />
+            <MacroCards log={log} selectedMeal={activeMeal} clientNotes={log?.client_notes} />
             <WhoopCard data={mergedWhoop} />
             <GearProtocol date={date} />
             <CoachNotes notes={notes} role="client" onUpdate={loadData} />
-
-            {log?.client_notes && (
-              <div className="bg-card border-2 border-border rounded-2xl p-4">
-                <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-2">Notes</h3>
-                <p className="text-sm font-bold whitespace-pre-wrap text-white">{log.client_notes}</p>
-              </div>
-            )}
 
             <TrendChart logs={recentLogs} />
           </>

@@ -22,13 +22,7 @@ export default function Nav({ role, unreadCount = 0 }: NavProps) {
   const [loaded, setLoaded] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const links =
-    role === "coach"
-      ? []
-      : [
-          { href: "/dashboard", label: "Dashboard" },
-          { href: "/log", label: "Log" },
-        ];
+  const links: { href: string; label: string }[] = [];
 
   function handleSignOut() {
     logout();

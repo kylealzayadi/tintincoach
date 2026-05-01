@@ -249,7 +249,7 @@ export default function CoachPage() {
               )}
             </div>
 
-            <MacroCards log={log} selectedMeal={activeMeal} />
+            <MacroCards log={log} selectedMeal={activeMeal} clientNotes={log?.client_notes} />
 
             <div className="grid grid-cols-3 gap-3">
               {/* WHOOP */}
@@ -315,7 +315,7 @@ export default function CoachPage() {
                 onClick={() => setExpanded(expanded === "notes" ? null : "notes")}
                 className={`bg-card border-2 rounded-2xl p-3 text-left transition-all active:scale-95 aspect-square flex flex-col relative ${expanded === "notes" ? "border-accent" : "border-border hover:border-accent"}`}
               >
-                <p className="text-[10px] font-black text-muted uppercase tracking-wider">Notes</p>
+                <p className="text-[10px] font-black text-muted uppercase tracking-wider">Your Notes</p>
                 {unreadNotes > 0 && (
                   <span className="absolute top-2 right-2 bg-danger text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
                     {unreadNotes}
@@ -341,14 +341,7 @@ export default function CoachPage() {
 
             {expanded === "whoop" && <WhoopCard data={mergedWhoop} />}
             {expanded === "gear" && <GearProtocol date={date} />}
-            {expanded === "notes" && <CoachNotes notes={notes} role="client" onUpdate={loadData} />}
-
-            {log?.client_notes && (
-              <div className="bg-card border-2 border-border rounded-2xl p-4">
-                <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-2">Notes</h3>
-                <p className="text-sm font-bold whitespace-pre-wrap text-white">{log.client_notes}</p>
-              </div>
-            )}
+            {expanded === "notes" && <CoachNotes notes={notes} role="coach" onUpdate={loadData} />}
 
             <TrendChart logs={recentLogs} />
           </>
@@ -446,16 +439,9 @@ export default function CoachPage() {
               )}
             </div>
 
-            {log && <MacroCards log={log} selectedMeal={activeMeal} />}
+            {log && <MacroCards log={log} selectedMeal={activeMeal} clientNotes={log?.client_notes} />}
             <WhoopCard data={mergedWhoop} />
             <GearProtocol date={date} />
-
-            {log?.client_notes && (
-              <div className="bg-card border-2 border-border rounded-2xl p-4">
-                <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-2">Client Notes</h3>
-                <p className="text-sm font-bold whitespace-pre-wrap text-white">{log.client_notes}</p>
-              </div>
-            )}
 
             <CoachNotes notes={notes} role="coach" onUpdate={loadData} />
 

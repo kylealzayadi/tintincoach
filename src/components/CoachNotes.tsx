@@ -50,7 +50,7 @@ export default function CoachNotes({ notes, role, onUpdate, embedded = false }: 
 
   return (
     <div className={embedded ? "" : "bg-card border-2 border-border rounded-2xl p-4"}>
-      {!embedded && <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-3">Coach Notes</h3>}
+      {!embedded && <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-3">{role === "coach" ? "Your Notes" : "Coach Notes"}</h3>}
       {notes.length === 0 ? (
         <p className="text-muted text-sm font-bold">No coach notes for this day</p>
       ) : (
