@@ -30,43 +30,44 @@ export default function TrendChart({ logs }: TrendChartProps) {
     }));
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4">
-      <h3 className="text-sm font-medium text-muted mb-4">7-Day Trends</h3>
+    <div className="bg-card border-2 border-border rounded-2xl p-4">
+      <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-4">7-Day Trends</h3>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#262626" />
-            <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#737373" }} />
-            <YAxis tick={{ fontSize: 11, fill: "#737373" }} width={40} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#2e2e2e" />
+            <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#a0a0a0", fontWeight: 700 }} />
+            <YAxis tick={{ fontSize: 11, fill: "#a0a0a0", fontWeight: 700 }} width={40} />
             <Tooltip
               contentStyle={{
-                backgroundColor: "#141414",
-                border: "1px solid #262626",
-                borderRadius: "8px",
+                backgroundColor: "#1a1a1a",
+                border: "2px solid #2e2e2e",
+                borderRadius: "12px",
                 fontSize: "12px",
+                fontWeight: 700,
               }}
             />
             <Line
               type="monotone"
               dataKey="calories"
-              stroke="#ededed"
-              strokeWidth={2}
+              stroke="#ffffff"
+              strokeWidth={2.5}
               dot={false}
               name="Calories"
             />
             <Line
               type="monotone"
               dataKey="protein"
-              stroke="#3b82f6"
-              strokeWidth={2}
+              stroke="#00e5ff"
+              strokeWidth={2.5}
               dot={false}
               name="Protein"
             />
             <Line
               type="monotone"
               dataKey="recovery"
-              stroke="#22c55e"
-              strokeWidth={2}
+              stroke="#00e676"
+              strokeWidth={2.5}
               dot={false}
               name="Recovery %"
               connectNulls

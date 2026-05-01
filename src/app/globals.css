@@ -1,16 +1,19 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: #0a0a0a;
-  --color-foreground: #ededed;
-  --color-card: #141414;
-  --color-border: #262626;
-  --color-muted: #737373;
-  --color-accent: #3b82f6;
-  --color-accent-hover: #2563eb;
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
+  --color-background: #0f0f0f;
+  --color-foreground: #ffffff;
+  --color-card: #1a1a1a;
+  --color-border: #2e2e2e;
+  --color-muted: #a0a0a0;
+  --color-accent: #6c5ce7;
+  --color-accent-hover: #5a4bd1;
+  --color-accent-glow: #6c5ce740;
+  --color-success: #00e676;
+  --color-warning: #ffab40;
+  --color-danger: #ff5252;
+  --color-cyan: #00e5ff;
+  --color-pink: #ff4081;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -19,10 +22,15 @@ body {
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 input,
 textarea,
 select {
   color-scheme: dark;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
 }

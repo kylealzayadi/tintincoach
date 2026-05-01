@@ -13,6 +13,19 @@ export interface GearEntry {
   dose: string;
 }
 
+export interface FoodEntry {
+  meal: string;
+  description: string;
+}
+
+export interface ExerciseEntry {
+  exercise: string;
+  sets: string;
+  reps: string;
+  weight: string;
+  notes: string;
+}
+
 export interface WhoopData {
   recovery?: number;
   strain?: number;
@@ -28,6 +41,8 @@ export interface DailyLog {
   carbs: number | null;
   fats: number | null;
   gear_json: GearEntry[];
+  food_json: FoodEntry[];
+  exercise_json: ExerciseEntry[];
   whoop_json: WhoopData;
   client_notes: string | null;
   created_at: string;

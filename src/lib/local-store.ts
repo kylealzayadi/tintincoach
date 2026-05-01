@@ -1,4 +1,4 @@
-import type { DailyLog, CoachNote, GearEntry, WhoopData } from "./types";
+import type { DailyLog, CoachNote, GearEntry, FoodEntry, ExerciseEntry, WhoopData } from "./types";
 
 const LOGS_KEY = "tintin_logs";
 const NOTES_KEY = "tintin_notes";
@@ -15,8 +15,6 @@ function getItem<T>(key: string): T[] {
 function setItem<T>(key: string, data: T[]) {
   localStorage.setItem(key, JSON.stringify(data));
 }
-
-// Daily Logs
 
 export function getLogs(): DailyLog[] {
   return getItem<DailyLog>(LOGS_KEY);
@@ -39,6 +37,8 @@ export function upsertLog(payload: {
   carbs: number | null;
   fats: number | null;
   gear_json: GearEntry[];
+  food_json: FoodEntry[];
+  exercise_json: ExerciseEntry[];
   whoop_json: WhoopData;
   client_notes: string | null;
 }): DailyLog {
@@ -61,8 +61,6 @@ export function upsertLog(payload: {
   setItem(LOGS_KEY, logs);
   return newLog;
 }
-
-// Coach Notes
 
 export function getCoachNotes(): CoachNote[] {
   return getItem<CoachNote>(NOTES_KEY);
