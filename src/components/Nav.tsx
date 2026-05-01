@@ -24,7 +24,7 @@ export default function Nav({ role, unreadCount = 0 }: NavProps) {
 
   const links =
     role === "coach"
-      ? [{ href: "/coach", label: "Dashboard" }]
+      ? []
       : [
           { href: "/dashboard", label: "Dashboard" },
           { href: "/log", label: "Log" },

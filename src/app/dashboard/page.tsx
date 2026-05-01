@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { format, subDays } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -10,36 +10,13 @@ import Nav from "@/components/Nav";
 import DateSelector from "@/components/DateSelector";
 import MacroCards from "@/components/MacroCards";
 import WhoopCard from "@/components/WhoopCard";
-import GearProtocol from "@/components/GearProtocol";
+import GearProtocol, { GEAR_DAYS, GEAR_SCHEDULE } from "@/components/GearProtocol";
 import CoachNotes from "@/components/CoachNotes";
 import TrendChart from "@/components/TrendChart";
 import WhoopConnect, { getWhoopForDate } from "@/components/WhoopConnect";
 
 const REFRESH_INTERVAL = 2 * 60 * 60 * 1000;
-
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
-
-  return (
-    <div className="fixed inset-0 z-[100] flex flex-col">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative flex-1 flex flex-col mt-14 sm:mt-16 bg-background rounded-t-3xl overflow-hidden animate-slideUp">
-        <div className="flex items-center justify-between px-4 py-3 border-b-2 border-border flex-shrink-0">
-          <h2 className="text-sm font-black text-white uppercase tracking-wider">{title}</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-card border border-border text-muted hover:text-white text-sm font-black transition active:scale-90">✕</button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-}
+const MEALS = ["Breakfast", "AM Snack", "Lunch", "PM Snack", "Dinner"] as const;
 
 export default function DashboardPage() {
   const { auth } = useAuth();
@@ -51,7 +28,22 @@ export default function DashboardPage() {
   const [whoopData, setWhoopData] = useState<WhoopData>({});
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [activeModal, setActiveModal] = useState<"whoop" | "gear" | "notes" | null>(null);
+  const [expanded, setExpanded] = useState<"whoop" | "gear" | "notes" | null>(null);
+  const [viewMode, setViewMode] = useState<"overlay" | "expanded">("overlay");
+  const [activeMeal, setActiveMeal] = useState<string | null>(null);
+  const mealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function selectMeal(meal: string | null) {
+    if (mealTimer.current) clearTimeout(mealTimer.current);
+    setActiveMeal(meal);
+    if (meal) {
+      mealTimer.current = setTimeout(() => setActiveMeal(null), 5000);
+    }
+  }
+
+  useEffect(() => {
+    return () => { if (mealTimer.current) clearTimeout(mealTimer.current); };
+  }, []);
 
   useEffect(() => {
     if (!auth) { router.replace("/login"); return; }
@@ -99,14 +91,16 @@ export default function DashboardPage() {
   const recoveryColor = mergedWhoop.recovery != null
     ? mergedWhoop.recovery >= 67 ? "text-success" : mergedWhoop.recovery >= 34 ? "text-warning" : "text-danger"
     : "text-muted";
-  const today = DAYS[new Date().getDay()];
+  const selectedDay = GEAR_DAYS[date.getDay()];
+  const selectedGear = GEAR_SCHEDULE[selectedDay];
+  const gearCount = selectedGear.injections.length + selectedGear.oral.length;
 
   return (
     <div className="min-h-screen pb-8">
       <Nav role="client" unreadCount={unreadCount} />
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-5">
         <div className="flex flex-col gap-4">
-          <div>
+          <div className="flex items-center justify-between">
             <h1
               className="text-2xl sm:text-3xl font-black uppercase tracking-wider animate-rainbow"
               style={{
@@ -117,8 +111,34 @@ export default function DashboardPage() {
                 backgroundClip: "text",
               }}
             >
-              Client Dashboard
+              Dashboard
             </h1>
+            <div className="flex bg-card border-2 border-border rounded-xl overflow-hidden">
+              <button
+                onClick={() => { setViewMode("overlay"); setExpanded(null); }}
+                title="Card View"
+                className={`px-2.5 py-2 transition-all ${viewMode === "overlay" ? "bg-accent text-white" : "text-muted hover:text-white"}`}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+              </button>
+              <button
+                onClick={() => { setViewMode("expanded"); setExpanded(null); }}
+                title="Expanded View"
+                className={`px-2.5 py-2 transition-all ${viewMode === "expanded" ? "bg-accent text-white" : "text-muted hover:text-white"}`}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="3" y1="4" x2="21" y2="4" />
+                  <line x1="3" y1="9" x2="21" y2="9" />
+                  <line x1="3" y1="14" x2="21" y2="14" />
+                  <line x1="3" y1="19" x2="15" y2="19" />
+                </svg>
+              </button>
+            </div>
           </div>
           <DateSelector date={date} onChange={setDate} />
         </div>
@@ -127,49 +147,128 @@ export default function DashboardPage() {
 
         {loading ? (
           <p className="text-muted font-bold text-sm">Loading...</p>
-        ) : (
+        ) : viewMode === "overlay" ? (
           <>
-            <MacroCards log={log} />
+            {/* Meal time buttons */}
+            <div className="space-y-2">
+              <div className="flex gap-1.5 overflow-x-auto">
+                {MEALS.map((meal) => {
+                  const entry = log?.meals_json?.find((m) => m.meal === meal);
+                  const hasData = entry && (entry.calories || entry.protein || entry.carbs || entry.fats || entry.description);
+                  const isActive = activeMeal === meal;
+                  return (
+                    <button
+                      key={meal}
+                      onClick={() => selectMeal(isActive ? null : meal)}
+                      className={`flex-1 min-w-0 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 ${
+                        isActive
+                          ? "bg-accent text-white shadow-[0_0_12px_var(--color-accent-glow)]"
+                          : hasData
+                            ? "bg-card border-2 border-success/40 text-success"
+                            : "bg-card border-2 border-border text-muted"
+                      }`}
+                    >
+                      {meal === "AM Snack" ? "AM Snack" : meal === "PM Snack" ? "PM Snack" : meal === "Breakfast" ? "Bfast" : meal}
+                    </button>
+                  );
+                })}
+              </div>
+              {activeMeal ? (() => {
+                const entry = log?.meals_json?.find((m) => m.meal === activeMeal);
+                const hasData = entry && (entry.calories || entry.protein || entry.carbs || entry.fats || entry.description);
+                return (
+                  <div className="bg-card border-2 border-border rounded-2xl p-3">
+                    <p className="text-[10px] font-black text-muted uppercase tracking-wider mb-2">{activeMeal}</p>
+                    {hasData ? (
+                      <div>
+                        {entry!.description && (
+                          <p className="text-xs font-bold text-muted/70">{entry!.description}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs font-bold text-muted/50">Not yet</p>
+                    )}
+                  </div>
+                );
+              })() : (
+                <div className="bg-card border-2 border-border rounded-2xl p-3 flex items-center justify-between">
+                  <p className="text-[10px] font-black text-muted uppercase tracking-wider">Total Macros</p>
+                  <div className="flex gap-3 text-xs font-bold">
+                    <span><span className="text-white">{log?.calories ?? 0}</span><span className="text-muted ml-0.5">cal</span></span>
+                    <span><span className="text-cyan">{log?.protein ?? 0}</span><span className="text-cyan/60 ml-0.5">p</span></span>
+                    <span><span className="text-warning">{log?.carbs ?? 0}</span><span className="text-warning/60 ml-0.5">c</span></span>
+                    <span><span className="text-pink">{log?.fats ?? 0}</span><span className="text-pink/60 ml-0.5">f</span></span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <MacroCards log={log} selectedMeal={activeMeal} />
 
             {/* Square overlay cards */}
             <div className="grid grid-cols-3 gap-3">
               {/* WHOOP */}
               <button
-                onClick={() => setActiveModal("whoop")}
-                className="bg-card border-2 border-border rounded-2xl p-3 text-left transition-all active:scale-95 hover:border-accent aspect-square flex flex-col justify-between"
+                onClick={() => setExpanded(expanded === "whoop" ? null : "whoop")}
+                className={`bg-card border-2 rounded-2xl p-3 text-left transition-all active:scale-95 aspect-square flex flex-col ${expanded === "whoop" ? "border-accent" : "border-border hover:border-accent"}`}
               >
                 <p className="text-[10px] font-black text-muted uppercase tracking-wider">WHOOP</p>
-                <div>
-                  {mergedWhoop.recovery != null ? (
-                    <p className={`text-2xl sm:text-3xl font-black ${recoveryColor}`}>{mergedWhoop.recovery}%</p>
-                  ) : (
-                    <p className="text-lg font-black text-muted/40">—</p>
-                  )}
-                  {mergedWhoop.strain != null && (
-                    <p className="text-[10px] font-bold text-muted mt-0.5">Strain {mergedWhoop.strain}</p>
-                  )}
-                  {mergedWhoop.sleep != null && (
-                    <p className="text-[10px] font-bold text-muted">{mergedWhoop.sleep}h sleep</p>
-                  )}
+                <div className="flex-1 flex flex-col justify-evenly">
+                  <div>
+                    <p className="text-[9px] font-bold text-muted uppercase">Recovery</p>
+                    {mergedWhoop.recovery != null ? (
+                      <p className={`text-lg font-black leading-tight ${recoveryColor}`}>{mergedWhoop.recovery}%</p>
+                    ) : (
+                      <p className="text-lg font-black text-muted/40 leading-tight">—</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-muted uppercase">Strain</p>
+                    {mergedWhoop.strain != null ? (
+                      <p className="text-lg font-black text-cyan leading-tight">{mergedWhoop.strain}</p>
+                    ) : (
+                      <p className="text-lg font-black text-muted/40 leading-tight">—</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-muted uppercase">Sleep</p>
+                    {mergedWhoop.sleep != null ? (
+                      <p className="text-lg font-black text-blue-400 leading-tight">{mergedWhoop.sleep}h</p>
+                    ) : (
+                      <p className="text-lg font-black text-muted/40 leading-tight">—</p>
+                    )}
+                  </div>
                 </div>
+                <p className="text-[10px] font-bold text-muted">Tap to view</p>
               </button>
 
               {/* Gear */}
               <button
-                onClick={() => setActiveModal("gear")}
-                className="bg-card border-2 border-border rounded-2xl p-3 text-left transition-all active:scale-95 hover:border-accent aspect-square flex flex-col justify-between"
+                onClick={() => setExpanded(expanded === "gear" ? null : "gear")}
+                className={`bg-card border-2 rounded-2xl p-3 text-left transition-all active:scale-95 aspect-square flex flex-col ${expanded === "gear" ? "border-accent" : "border-border hover:border-accent"}`}
               >
                 <p className="text-[10px] font-black text-muted uppercase tracking-wider">Gear</p>
-                <div>
-                  <p className="text-2xl sm:text-3xl font-black text-pink">{today}</p>
-                  <p className="text-[10px] font-bold text-muted mt-0.5">Tap to view</p>
+                <div className="flex-1 flex flex-col justify-evenly">
+                  <div>
+                    <p className="text-[9px] font-bold text-muted uppercase">Today</p>
+                    <p className="text-lg font-black text-pink leading-tight">{selectedDay}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-muted uppercase">Injections</p>
+                    <p className="text-lg font-black text-cyan leading-tight">{selectedGear.injections.length}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-muted uppercase">Items</p>
+                    <p className="text-lg font-black text-warning leading-tight">{gearCount}</p>
+                  </div>
                 </div>
+                <p className="text-[10px] font-bold text-muted">Tap to view</p>
               </button>
 
               {/* Coach Notes */}
               <button
-                onClick={() => setActiveModal("notes")}
-                className="bg-card border-2 border-border rounded-2xl p-3 text-left transition-all active:scale-95 hover:border-accent aspect-square flex flex-col justify-between relative"
+                onClick={() => setExpanded(expanded === "notes" ? null : "notes")}
+                className={`bg-card border-2 rounded-2xl p-3 text-left transition-all active:scale-95 aspect-square flex flex-col relative ${expanded === "notes" ? "border-accent" : "border-border hover:border-accent"}`}
               >
                 <p className="text-[10px] font-black text-muted uppercase tracking-wider">Notes</p>
                 {unreadNotes > 0 && (
@@ -177,12 +276,99 @@ export default function DashboardPage() {
                     {unreadNotes}
                   </span>
                 )}
-                <div>
-                  <p className="text-2xl sm:text-3xl font-black text-accent">{notes.length}</p>
-                  <p className="text-[10px] font-bold text-muted mt-0.5">{notes.length === 1 ? "note" : "notes"} today</p>
+                <div className="flex-1 flex flex-col justify-evenly">
+                  <div>
+                    <p className="text-[9px] font-bold text-muted uppercase">Today</p>
+                    <p className="text-lg font-black text-accent leading-tight">{notes.length}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-muted uppercase">Unread</p>
+                    <p className={`text-lg font-black leading-tight ${unreadNotes > 0 ? "text-danger" : "text-muted/40"}`}>{unreadNotes}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-muted uppercase">Status</p>
+                    <p className={`text-xs font-black leading-tight ${unreadNotes > 0 ? "text-danger" : "text-success"}`}>{unreadNotes > 0 ? "New" : "Read"}</p>
+                  </div>
                 </div>
+                <p className="text-[10px] font-bold text-muted">Tap to view</p>
               </button>
             </div>
+
+            {/* Inline expanded content */}
+            {expanded === "whoop" && <WhoopCard data={mergedWhoop} />}
+            {expanded === "gear" && <GearProtocol date={date} />}
+            {expanded === "notes" && <CoachNotes notes={notes} role="client" onUpdate={loadData} />}
+
+            {log?.client_notes && (
+              <div className="bg-card border-2 border-border rounded-2xl p-4">
+                <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-2">Notes</h3>
+                <p className="text-sm font-bold whitespace-pre-wrap text-white">{log.client_notes}</p>
+              </div>
+            )}
+
+            <TrendChart logs={recentLogs} />
+          </>
+        ) : (
+          /* ── Expanded View ── */
+          <>
+            {/* Meal time buttons */}
+            <div className="space-y-2">
+              <div className="flex gap-1.5 overflow-x-auto">
+                {MEALS.map((meal) => {
+                  const entry = log?.meals_json?.find((m) => m.meal === meal);
+                  const hasData = entry && (entry.calories || entry.protein || entry.carbs || entry.fats || entry.description);
+                  const isActive = activeMeal === meal;
+                  return (
+                    <button
+                      key={meal}
+                      onClick={() => selectMeal(isActive ? null : meal)}
+                      className={`flex-1 min-w-0 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 ${
+                        isActive
+                          ? "bg-accent text-white shadow-[0_0_12px_var(--color-accent-glow)]"
+                          : hasData
+                            ? "bg-card border-2 border-success/40 text-success"
+                            : "bg-card border-2 border-border text-muted"
+                      }`}
+                    >
+                      {meal === "AM Snack" ? "AM Snack" : meal === "PM Snack" ? "PM Snack" : meal === "Breakfast" ? "Bfast" : meal}
+                    </button>
+                  );
+                })}
+              </div>
+              {activeMeal ? (() => {
+                const entry = log?.meals_json?.find((m) => m.meal === activeMeal);
+                const hasData = entry && (entry.calories || entry.protein || entry.carbs || entry.fats || entry.description);
+                return (
+                  <div className="bg-card border-2 border-border rounded-2xl p-3">
+                    <p className="text-[10px] font-black text-muted uppercase tracking-wider mb-2">{activeMeal}</p>
+                    {hasData ? (
+                      <div>
+                        {entry!.description && (
+                          <p className="text-xs font-bold text-muted/70">{entry!.description}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs font-bold text-muted/50">Not yet</p>
+                    )}
+                  </div>
+                );
+              })() : (
+                <div className="bg-card border-2 border-border rounded-2xl p-3 flex items-center justify-between">
+                  <p className="text-[10px] font-black text-muted uppercase tracking-wider">Total Macros</p>
+                  <div className="flex gap-3 text-xs font-bold">
+                    <span><span className="text-white">{log?.calories ?? 0}</span><span className="text-muted ml-0.5">cal</span></span>
+                    <span><span className="text-cyan">{log?.protein ?? 0}</span><span className="text-cyan/60 ml-0.5">p</span></span>
+                    <span><span className="text-warning">{log?.carbs ?? 0}</span><span className="text-warning/60 ml-0.5">c</span></span>
+                    <span><span className="text-pink">{log?.fats ?? 0}</span><span className="text-pink/60 ml-0.5">f</span></span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <MacroCards log={log} selectedMeal={activeMeal} />
+            <WhoopCard data={mergedWhoop} />
+            <GearProtocol date={date} />
+            <CoachNotes notes={notes} role="client" onUpdate={loadData} />
 
             {log?.client_notes && (
               <div className="bg-card border-2 border-border rounded-2xl p-4">
@@ -195,23 +381,6 @@ export default function DashboardPage() {
           </>
         )}
       </main>
-
-      {/* Modals */}
-      {activeModal === "whoop" && (
-        <Modal title="WHOOP" onClose={() => setActiveModal(null)}>
-          <WhoopCard data={mergedWhoop} embedded />
-        </Modal>
-      )}
-      {activeModal === "gear" && (
-        <Modal title="Gear & Protocol" onClose={() => setActiveModal(null)}>
-          <GearProtocol embedded />
-        </Modal>
-      )}
-      {activeModal === "notes" && (
-        <Modal title="Coach Notes" onClose={() => setActiveModal(null)}>
-          <CoachNotes notes={notes} role="client" onUpdate={loadData} embedded />
-        </Modal>
-      )}
     </div>
   );
 }

@@ -4,12 +4,16 @@ import type { DailyLog } from "@/lib/types";
 
 interface MacroCardsProps {
   log: DailyLog | null;
+  selectedMeal?: string | null;
 }
 
-function Card({ label, value, unit, color }: { label: string; value: number | null; unit: string; color: string }) {
+function Card({ label, value, unit, color, sub }: { label: string; value: number | null; unit: string; color: string; sub?: string }) {
   return (
     <div className="bg-card border-2 border-border rounded-2xl p-4">
-      <p className="text-muted text-xs font-black uppercase tracking-wider mb-1">{label}</p>
+      <div className="flex items-baseline justify-between">
+        <p className="text-muted text-xs font-black uppercase tracking-wider mb-1">{label}</p>
+        {sub && <p className="text-[9px] font-bold text-accent uppercase">{sub}</p>}
+      </div>
       <p className={`text-3xl font-black ${color}`}>
         {value ?? "—"}
         {value != null && <span className="text-sm font-bold text-muted ml-1">{unit}</span>}
@@ -18,16 +22,25 @@ function Card({ label, value, unit, color }: { label: string; value: number | nu
   );
 }
 
-export default function MacroCards({ log }: MacroCardsProps) {
-  const hasMeals = log?.meals_json && log.meals_json.length > 0;
+export default function MacroCards({ log, selectedMeal }: MacroCardsProps) {
+  const meal = selectedMeal ? log?.meals_json?.find((m) => m.meal === selectedMeal) : null;
+  const showMeal = selectedMeal && meal;
+
+  const calories = showMeal ? meal!.calories : log?.calories ?? null;
+  const protein = showMeal ? meal!.protein : log?.protein ?? null;
+  const carbs = showMeal ? meal!.carbs : log?.carbs ?? null;
+  const fats = showMeal ? meal!.fats : log?.fats ?? null;
+  const mealLabel = showMeal ? selectedMeal! : undefined;
+
+  const hasMeals = !selectedMeal && log?.meals_json && log.meals_json.length > 0;
 
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        <Card label="Calories" value={log?.calories ?? null} unit="kcal" color="text-white" />
-        <Card label="Protein" value={log?.protein ?? null} unit="g" color="text-cyan" />
-        <Card label="Carbs" value={log?.carbs ?? null} unit="g" color="text-warning" />
-        <Card label="Fats" value={log?.fats ?? null} unit="g" color="text-pink" />
+        <Card label="Calories" value={calories} unit="kcal" color="text-white" sub={mealLabel} />
+        <Card label="Protein" value={protein} unit="g" color="text-cyan" sub={mealLabel} />
+        <Card label="Carbs" value={carbs} unit="g" color="text-warning" sub={mealLabel} />
+        <Card label="Fats" value={fats} unit="g" color="text-pink" sub={mealLabel} />
       </div>
 
       {hasMeals && (
