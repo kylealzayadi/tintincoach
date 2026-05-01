@@ -1,6 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { supabaseServer } from "@/lib/supabase-server";
 
 const API_BASE = "https://api.prod.whoop.com/developer";
+
+async function getTokens() {
+  const { data } = await supabaseServer
+    .from("whoop_tokens")
+    .select("*")
+    .eq("id", 1)
+    .single();
+  return data;
+}
 
 async function refreshAccessToken(refreshToken: string): Promise<{ access_token: string; refresh_token?: string; expires_in: number } | null> {
   const res = await fetch("https://api.prod.whoop.com/oauth/oauth2/token", {
@@ -44,25 +54,31 @@ interface DayData {
   sleep?: number;
 }
 
-export async function GET(request: NextRequest) {
-  let accessToken = request.cookies.get("whoop_access_token")?.value;
-  const refreshToken = request.cookies.get("whoop_refresh_token")?.value;
-  const newCookies: { name: string; value: string; maxAge: number }[] = [];
+export async function GET() {
+  const stored = await getTokens();
+  if (!stored) {
+    return NextResponse.json({ error: "Not connected to WHOOP" }, { status: 401 });
+  }
 
-  if (!accessToken && refreshToken) {
-    const tokens = await refreshAccessToken(refreshToken);
+  let accessToken = stored.access_token;
+
+  // Check if token is expired and refresh
+  if (stored.expires_at && new Date(stored.expires_at) < new Date()) {
+    if (!stored.refresh_token) {
+      return NextResponse.json({ error: "WHOOP token expired. Reconnect." }, { status: 401 });
+    }
+    const tokens = await refreshAccessToken(stored.refresh_token);
     if (!tokens) {
       return NextResponse.json({ error: "Token refresh failed. Reconnect WHOOP." }, { status: 401 });
     }
     accessToken = tokens.access_token;
-    newCookies.push({ name: "whoop_access_token", value: accessToken, maxAge: tokens.expires_in });
-    if (tokens.refresh_token) {
-      newCookies.push({ name: "whoop_refresh_token", value: tokens.refresh_token, maxAge: 60 * 60 * 24 * 30 });
-    }
-  }
-
-  if (!accessToken) {
-    return NextResponse.json({ error: "Not connected to WHOOP" }, { status: 401 });
+    await supabaseServer.from("whoop_tokens").upsert({
+      id: 1,
+      access_token: accessToken,
+      refresh_token: tokens.refresh_token ?? stored.refresh_token,
+      expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+      updated_at: new Date().toISOString(),
+    });
   }
 
   const [recoveryData, cycleData, sleepData] = await Promise.all([
@@ -71,29 +87,26 @@ export async function GET(request: NextRequest) {
     whoopFetch("/v2/activity/sleep?limit=14", accessToken),
   ]);
 
-  // Build a map of cycle_id → local end date (the "day" the cycle represents)
   const days: Record<string, DayData> = {};
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cycleById: Record<number, any> = {};
+
+  function getDayForCycle(cycle: { start: string; end: string | null; timezone_offset: string }): string {
+    const offset = cycle.timezone_offset || "+00:00";
+    if (cycle.end) {
+      return localDateStr(cycle.end, offset);
+    }
+    const startLocal = utcToLocal(cycle.start, offset);
+    const nextDay = new Date(startLocal.getTime() + 86400000);
+    return nextDay.toISOString().slice(0, 10);
+  }
 
   if (cycleData?.records) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const cycle of cycleData.records as any[]) {
       cycleById[cycle.id] = cycle;
-      const offset = cycle.timezone_offset || "+00:00";
-      // The "day" a cycle belongs to is the date of end in local time,
-      // or if still open (no end), use the start date + 1 day
-      let dayStr: string;
-      if (cycle.end) {
-        dayStr = localDateStr(cycle.end, offset);
-      } else {
-        const startLocal = utcToLocal(cycle.start, offset);
-        const nextDay = new Date(startLocal.getTime() + 86400000);
-        dayStr = nextDay.toISOString().slice(0, 10);
-      }
-
+      const dayStr = getDayForCycle(cycle);
       if (!days[dayStr]) days[dayStr] = {};
-
       if (cycle.score) {
         days[dayStr].strain = Math.round(cycle.score.strain * 100) / 100;
       }
@@ -105,16 +118,7 @@ export async function GET(request: NextRequest) {
     for (const rec of recoveryData.records as any[]) {
       const cycle = cycleById[rec.cycle_id];
       if (!cycle) continue;
-      const offset = cycle.timezone_offset || "+00:00";
-      let dayStr: string;
-      if (cycle.end) {
-        dayStr = localDateStr(cycle.end, offset);
-      } else {
-        const startLocal = utcToLocal(cycle.start, offset);
-        const nextDay = new Date(startLocal.getTime() + 86400000);
-        dayStr = nextDay.toISOString().slice(0, 10);
-      }
-
+      const dayStr = getDayForCycle(cycle);
       if (!days[dayStr]) days[dayStr] = {};
       if (rec.score) {
         days[dayStr].recovery = rec.score.recovery_score;
@@ -128,16 +132,7 @@ export async function GET(request: NextRequest) {
       if (s.nap) continue;
       const cycle = cycleById[s.cycle_id];
       if (!cycle) continue;
-      const offset = cycle.timezone_offset || s.timezone_offset || "+00:00";
-      let dayStr: string;
-      if (cycle.end) {
-        dayStr = localDateStr(cycle.end, offset);
-      } else {
-        const startLocal = utcToLocal(cycle.start, offset);
-        const nextDay = new Date(startLocal.getTime() + 86400000);
-        dayStr = nextDay.toISOString().slice(0, 10);
-      }
-
+      const dayStr = getDayForCycle(cycle);
       if (!days[dayStr]) days[dayStr] = {};
       if (s.score?.stage_summary) {
         const totalMs = s.score.stage_summary.total_in_bed_time_milli -
@@ -147,16 +142,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const response = NextResponse.json({ connected: true, days });
-
-  for (const cookie of newCookies) {
-    response.cookies.set(cookie.name, cookie.value, {
-      httpOnly: true,
-      sameSite: "lax",
-      maxAge: cookie.maxAge,
-      path: "/",
-    });
-  }
-
-  return response;
+  return NextResponse.json({ connected: true, days });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { format, subDays } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -9,7 +9,7 @@ import {
   getLogsByDateRange,
   getCoachNotesByDate,
   addCoachNote,
-} from "@/lib/local-store";
+} from "@/lib/store";
 import type { DailyLog, CoachNote } from "@/lib/types";
 import Nav from "@/components/Nav";
 import DateSelector from "@/components/DateSelector";
@@ -21,7 +21,7 @@ import ExerciseList from "@/components/ExerciseList";
 import CoachNotes from "@/components/CoachNotes";
 import TrendChart from "@/components/TrendChart";
 
-const REFRESH_INTERVAL = 2 * 60 * 60 * 1000; // 2 hours
+const REFRESH_INTERVAL = 2 * 60 * 60 * 1000;
 
 export default function CoachPage() {
   const { auth } = useAuth();
@@ -31,6 +31,8 @@ export default function CoachPage() {
   const [notes, setNotes] = useState<CoachNote[]>([]);
   const [recentLogs, setRecentLogs] = useState<DailyLog[]>([]);
   const [newNote, setNewNote] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [lastViewed] = useState(() => {
     if (typeof window === "undefined") return null;
     const ts = localStorage.getItem("tintin_coach_last_viewed");
@@ -43,30 +45,38 @@ export default function CoachPage() {
     if (auth.role !== "coach") { router.replace("/dashboard"); }
   }, [auth, router]);
 
-  function loadData() {
+  const loadData = useCallback(async () => {
+    setLoading(true);
     const dateStr = format(date, "yyyy-MM-dd");
-    setLog(getLogByDate(dateStr));
-    setNotes(getCoachNotesByDate(dateStr));
-    const today = format(new Date(), "yyyy-MM-dd");
-    const weekAgo = format(subDays(new Date(), 7), "yyyy-MM-dd");
-    setRecentLogs(getLogsByDateRange(weekAgo, today));
-  }
-
-  useEffect(() => {
-    loadData();
+    const [logData, notesData, trendsData] = await Promise.all([
+      getLogByDate(dateStr),
+      getCoachNotesByDate(dateStr),
+      getLogsByDateRange(
+        format(subDays(new Date(), 7), "yyyy-MM-dd"),
+        format(new Date(), "yyyy-MM-dd")
+      ),
+    ]);
+    setLog(logData);
+    setNotes(notesData);
+    setRecentLogs(trendsData);
+    setLoading(false);
   }, [date]);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   useEffect(() => {
     const interval = setInterval(loadData, REFRESH_INTERVAL);
     return () => clearInterval(interval);
-  }, [date]);
+  }, [loadData]);
 
-  function handleSubmitNote(e: React.FormEvent) {
+  async function handleSubmitNote(e: React.FormEvent) {
     e.preventDefault();
     if (!newNote.trim()) return;
-    addCoachNote(format(date, "yyyy-MM-dd"), newNote.trim());
+    setPosting(true);
+    await addCoachNote(format(date, "yyyy-MM-dd"), newNote.trim());
     setNewNote("");
-    setNotes(getCoachNotesByDate(format(date, "yyyy-MM-dd")));
+    setPosting(false);
+    loadData();
   }
 
   if (!auth || auth.role !== "coach") return null;
@@ -87,20 +97,18 @@ export default function CoachPage() {
           <DateSelector date={date} onChange={setDate} />
         </div>
 
-        {!log ? (
+        {loading ? (
+          <p className="text-muted font-bold text-sm">Loading...</p>
+        ) : !log ? (
           <div className="bg-card border-2 border-border rounded-2xl p-8 text-center">
             <p className="text-muted font-bold text-lg">No data logged for this day</p>
           </div>
         ) : (
           <>
             <MacroCards log={log} />
-
             <WhoopCard data={log.whoop_json ?? {}} />
-
             <FoodList food={log.food_json ?? []} />
-
             <ExerciseList exercises={log.exercise_json ?? []} />
-
             <GearList gear={log.gear_json ?? []} />
 
             {log.client_notes && (
@@ -114,7 +122,6 @@ export default function CoachPage() {
 
         <CoachNotes notes={notes} />
 
-        {/* Add note */}
         <div className="bg-card border-2 border-border rounded-2xl p-4">
           <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-3">Add Note</h3>
           <form onSubmit={handleSubmitNote} className="space-y-3">
@@ -127,10 +134,10 @@ export default function CoachPage() {
             />
             <button
               type="submit"
-              disabled={!newNote.trim()}
+              disabled={!newNote.trim() || posting}
               className="w-full bg-accent hover:bg-accent-hover text-white rounded-2xl px-6 py-4 text-base font-black uppercase tracking-wider transition-all hover:shadow-[0_0_30px_var(--color-accent-glow)] active:scale-[0.98] disabled:opacity-50"
             >
-              Post Note
+              {posting ? "Posting..." : "Post Note"}
             </button>
           </form>
         </div>

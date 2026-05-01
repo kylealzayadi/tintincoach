@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getLogByDate, upsertLog } from "@/lib/local-store";
+import { getLogByDate, upsertLog } from "@/lib/store";
 import type { GearEntry, FoodEntry, ExerciseEntry, WhoopData } from "@/lib/types";
 import Nav from "@/components/Nav";
 import DateSelector from "@/components/DateSelector";
@@ -28,6 +28,7 @@ export default function LogPage() {
   const [whoopSleep, setWhoopSleep] = useState("");
   const [clientNotes, setClientNotes] = useState("");
   const [isUpdate, setIsUpdate] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -36,9 +37,13 @@ export default function LogPage() {
   }, [auth, router]);
 
   useEffect(() => {
-    const dateStr = format(date, "yyyy-MM-dd");
-    const log = getLogByDate(dateStr);
+    loadDay();
     setSaved(false);
+  }, [date]);
+
+  async function loadDay() {
+    const dateStr = format(date, "yyyy-MM-dd");
+    const log = await getLogByDate(dateStr);
 
     if (log) {
       setIsUpdate(true);
@@ -60,37 +65,35 @@ export default function LogPage() {
       setWhoopRecovery(""); setWhoopStrain(""); setWhoopSleep("");
       setClientNotes("");
     }
-  }, [date]);
+  }
 
-  // Gear
   function addGearRow() { setGear([...gear, { compound: "", dose: "" }]); }
   function updateGear(i: number, field: keyof GearEntry, value: string) {
     const u = [...gear]; u[i] = { ...u[i], [field]: value }; setGear(u);
   }
   function removeGear(i: number) { setGear(gear.filter((_, idx) => idx !== i)); }
 
-  // Food
   function addFoodRow() { setFood([...food, { meal: "", description: "" }]); }
   function updateFood(i: number, field: keyof FoodEntry, value: string) {
     const u = [...food]; u[i] = { ...u[i], [field]: value }; setFood(u);
   }
   function removeFood(i: number) { setFood(food.filter((_, idx) => idx !== i)); }
 
-  // Exercise
   function addExerciseRow() { setExercises([...exercises, { exercise: "", sets: "", reps: "", weight: "", notes: "" }]); }
   function updateExercise(i: number, field: keyof ExerciseEntry, value: string) {
     const u = [...exercises]; u[i] = { ...u[i], [field]: value }; setExercises(u);
   }
   function removeExercise(i: number) { setExercises(exercises.filter((_, idx) => idx !== i)); }
 
-  function handleSave(e: React.FormEvent) {
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    setSaving(true);
     const whoopJson: WhoopData = {};
     if (whoopRecovery) whoopJson.recovery = Number(whoopRecovery);
     if (whoopStrain) whoopJson.strain = Number(whoopStrain);
     if (whoopSleep) whoopJson.sleep = Number(whoopSleep);
 
-    upsertLog({
+    await upsertLog({
       date: format(date, "yyyy-MM-dd"),
       calories: calories ? Number(calories) : null,
       protein: protein ? Number(protein) : null,
@@ -104,6 +107,7 @@ export default function LogPage() {
     });
 
     setIsUpdate(true);
+    setSaving(false);
     setSaved(true);
   }
 
@@ -146,19 +150,13 @@ export default function LogPage() {
           <div className="bg-card border-2 border-border rounded-2xl p-4 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-black text-muted uppercase tracking-wider">Food Log</h2>
-              <button type="button" onClick={addFoodRow} className="text-xs font-black text-accent hover:text-accent-hover transition active:scale-95">
-                + Add meal
-              </button>
+              <button type="button" onClick={addFoodRow} className="text-xs font-black text-accent hover:text-accent-hover transition active:scale-95">+ Add meal</button>
             </div>
             {food.length === 0 && <p className="text-muted text-sm font-bold">No meals logged</p>}
             {food.map((entry, i) => (
               <div key={i} className="space-y-2 border-l-2 border-warning pl-3">
                 <div className="flex gap-2 items-center">
-                  <select
-                    value={entry.meal}
-                    onChange={(e) => updateFood(i, "meal", e.target.value)}
-                    className={inputClass + " w-32 flex-shrink-0"}
-                  >
+                  <select value={entry.meal} onChange={(e) => updateFood(i, "meal", e.target.value)} className={inputClass + " w-32 flex-shrink-0"}>
                     <option value="">Meal</option>
                     <option value="Breakfast">Breakfast</option>
                     <option value="Lunch">Lunch</option>
@@ -169,13 +167,7 @@ export default function LogPage() {
                   </select>
                   <button type="button" onClick={() => removeFood(i)} className="text-muted hover:text-danger text-sm font-black transition px-2">x</button>
                 </div>
-                <textarea
-                  value={entry.description}
-                  onChange={(e) => updateFood(i, "description", e.target.value)}
-                  placeholder="What did you eat?"
-                  rows={2}
-                  className={inputClass + " resize-none"}
-                />
+                <textarea value={entry.description} onChange={(e) => updateFood(i, "description", e.target.value)} placeholder="What did you eat?" rows={2} className={inputClass + " resize-none"} />
               </div>
             ))}
           </div>
@@ -184,21 +176,13 @@ export default function LogPage() {
           <div className="bg-card border-2 border-border rounded-2xl p-4 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-black text-muted uppercase tracking-wider">Exercise</h2>
-              <button type="button" onClick={addExerciseRow} className="text-xs font-black text-accent hover:text-accent-hover transition active:scale-95">
-                + Add exercise
-              </button>
+              <button type="button" onClick={addExerciseRow} className="text-xs font-black text-accent hover:text-accent-hover transition active:scale-95">+ Add exercise</button>
             </div>
             {exercises.length === 0 && <p className="text-muted text-sm font-bold">No exercises logged</p>}
             {exercises.map((entry, i) => (
               <div key={i} className="space-y-2 border-l-2 border-cyan pl-3">
                 <div className="flex gap-2 items-center">
-                  <input
-                    type="text"
-                    value={entry.exercise}
-                    onChange={(e) => updateExercise(i, "exercise", e.target.value)}
-                    placeholder="Exercise name"
-                    className={inputClass + " flex-1"}
-                  />
+                  <input type="text" value={entry.exercise} onChange={(e) => updateExercise(i, "exercise", e.target.value)} placeholder="Exercise name" className={inputClass + " flex-1"} />
                   <button type="button" onClick={() => removeExercise(i)} className="text-muted hover:text-danger text-sm font-black transition px-2">x</button>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -247,9 +231,7 @@ export default function LogPage() {
           <div className="bg-card border-2 border-border rounded-2xl p-4 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-black text-muted uppercase tracking-wider">Gear</h2>
-              <button type="button" onClick={addGearRow} className="text-xs font-black text-accent hover:text-accent-hover transition active:scale-95">
-                + Add compound
-              </button>
+              <button type="button" onClick={addGearRow} className="text-xs font-black text-accent hover:text-accent-hover transition active:scale-95">+ Add compound</button>
             </div>
             {gear.length === 0 && <p className="text-muted text-sm font-bold">No gear logged</p>}
             {gear.map((entry, i) => (
@@ -264,22 +246,17 @@ export default function LogPage() {
           {/* Notes */}
           <div className="bg-card border-2 border-border rounded-2xl p-4 space-y-4">
             <h2 className="text-xs font-black text-muted uppercase tracking-wider">Notes</h2>
-            <textarea
-              value={clientNotes}
-              onChange={(e) => setClientNotes(e.target.value)}
-              rows={3}
-              placeholder="How are you feeling? Anything notable?"
-              className={inputClass + " resize-none"}
-            />
+            <textarea value={clientNotes} onChange={(e) => setClientNotes(e.target.value)} rows={3} placeholder="How are you feeling? Anything notable?" className={inputClass + " resize-none"} />
           </div>
 
           {/* Submit */}
           <div className="flex items-center gap-4">
             <button
               type="submit"
-              className="flex-1 bg-accent hover:bg-accent-hover text-white rounded-2xl px-6 py-4 text-base font-black uppercase tracking-wider transition-all hover:shadow-[0_0_30px_var(--color-accent-glow)] active:scale-[0.98]"
+              disabled={saving}
+              className="flex-1 bg-accent hover:bg-accent-hover text-white rounded-2xl px-6 py-4 text-base font-black uppercase tracking-wider transition-all hover:shadow-[0_0_30px_var(--color-accent-glow)] active:scale-[0.98] disabled:opacity-50"
             >
-              {isUpdate ? "Update" : "Save"}
+              {saving ? "Saving..." : isUpdate ? "Update" : "Save"}
             </button>
             {saved && <span className="text-success text-sm font-black">Saved!</span>}
           </div>

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { supabaseServer } from "@/lib/supabase-server";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -28,26 +29,16 @@ export async function GET(request: NextRequest) {
 
   const tokens = await tokenRes.json();
 
-  // Store tokens in a cookie (encrypted in production; for now, httpOnly cookie)
-  const response = NextResponse.redirect(new URL("/dashboard?whoop=connected", request.url));
-
-  response.cookies.set("whoop_access_token", tokens.access_token, {
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: tokens.expires_in,
-    path: "/",
+  // Store tokens in Supabase (single row, id=1)
+  await supabaseServer.from("whoop_tokens").upsert({
+    id: 1,
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token ?? null,
+    expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
   });
 
-  if (tokens.refresh_token) {
-    response.cookies.set("whoop_refresh_token", tokens.refresh_token, {
-      httpOnly: true,
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-      path: "/",
-    });
-  }
-
+  const response = NextResponse.redirect(new URL("/dashboard?whoop=connected", request.url));
   response.cookies.delete("whoop_oauth_state");
-
   return response;
 }

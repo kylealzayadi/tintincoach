@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { format, subDays } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getLogByDate, getLogsByDateRange, getCoachNotesByDate } from "@/lib/local-store";
+import { getLogByDate, getLogsByDateRange, getCoachNotesByDate } from "@/lib/store";
 import type { DailyLog, CoachNote, WhoopData } from "@/lib/types";
 import Nav from "@/components/Nav";
 import DateSelector from "@/components/DateSelector";
@@ -27,20 +27,29 @@ export default function DashboardPage() {
   const [notes, setNotes] = useState<CoachNote[]>([]);
   const [recentLogs, setRecentLogs] = useState<DailyLog[]>([]);
   const [whoopData, setWhoopData] = useState<WhoopData>({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!auth) { router.replace("/login"); return; }
     if (auth.role === "coach") { router.replace("/coach"); }
   }, [auth, router]);
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
+    setLoading(true);
     const dateStr = format(date, "yyyy-MM-dd");
-    setLog(getLogByDate(dateStr));
-    setNotes(getCoachNotesByDate(dateStr));
-    const today = format(new Date(), "yyyy-MM-dd");
-    const weekAgo = format(subDays(new Date(), 7), "yyyy-MM-dd");
-    setRecentLogs(getLogsByDateRange(weekAgo, today));
+    const [logData, notesData, trendsData] = await Promise.all([
+      getLogByDate(dateStr),
+      getCoachNotesByDate(dateStr),
+      getLogsByDateRange(
+        format(subDays(new Date(), 7), "yyyy-MM-dd"),
+        format(new Date(), "yyyy-MM-dd")
+      ),
+    ]);
+    setLog(logData);
+    setNotes(notesData);
+    setRecentLogs(trendsData);
     setWhoopData(getWhoopForDate(dateStr) ?? {});
+    setLoading(false);
   }, [date]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -69,21 +78,27 @@ export default function DashboardPage() {
 
         <WhoopConnect date={format(date, "yyyy-MM-dd")} onSync={loadData} />
 
-        <MacroCards log={log} />
-        <WhoopCard data={mergedWhoop} />
-        <FoodList food={log?.food_json ?? []} />
-        <ExerciseList exercises={log?.exercise_json ?? []} />
-        <GearList gear={log?.gear_json ?? []} />
+        {loading ? (
+          <p className="text-muted font-bold text-sm">Loading...</p>
+        ) : (
+          <>
+            <MacroCards log={log} />
+            <WhoopCard data={mergedWhoop} />
+            <FoodList food={log?.food_json ?? []} />
+            <ExerciseList exercises={log?.exercise_json ?? []} />
+            <GearList gear={log?.gear_json ?? []} />
 
-        {log?.client_notes && (
-          <div className="bg-card border-2 border-border rounded-2xl p-4">
-            <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-2">Notes</h3>
-            <p className="text-sm font-bold whitespace-pre-wrap text-white">{log.client_notes}</p>
-          </div>
+            {log?.client_notes && (
+              <div className="bg-card border-2 border-border rounded-2xl p-4">
+                <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-2">Notes</h3>
+                <p className="text-sm font-bold whitespace-pre-wrap text-white">{log.client_notes}</p>
+              </div>
+            )}
+
+            <CoachNotes notes={notes} />
+            <TrendChart logs={recentLogs} />
+          </>
         )}
-
-        <CoachNotes notes={notes} />
-        <TrendChart logs={recentLogs} />
       </main>
     </div>
   );
