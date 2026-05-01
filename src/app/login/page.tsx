@@ -34,7 +34,7 @@ export default function LoginPage() {
           <h1 className="text-4xl font-black tracking-tight mb-2">
             PROJECT: <span className="text-accent">WAR</span>
           </h1>
-          <p className="text-muted text-sm font-bold uppercase tracking-widest">by TINTIN</p>
+          <p className="text-muted text-sm font-bold tracking-widest">by TinTin</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">

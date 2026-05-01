@@ -127,7 +127,21 @@ export default function CoachPage() {
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-5">
         <div className="flex flex-col gap-4">
           <div>
-            <h1 className="text-2xl font-black">Coach View</h1>
+            <h1 className="text-2xl font-black flex items-center gap-2">
+              <span
+                className="text-2xl sm:text-3xl font-black uppercase tracking-wider animate-rainbow"
+                style={{
+                  backgroundImage: "linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00aaff, #8800ff, #ff00ff, #ff0000)",
+                  backgroundSize: "200% 100%",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
+                Coach
+              </span>
+              <span>View</span>
+            </h1>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
               {lastViewed && (
                 <p className="text-xs font-bold text-muted">

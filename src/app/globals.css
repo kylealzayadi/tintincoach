@@ -35,6 +35,14 @@ select {
   -webkit-tap-highlight-color: transparent;
 }
 
+button, a, select, input[type="date"] {
+  touch-action: manipulation;
+}
+
+input, textarea, select {
+  font-size: 16px;
+}
+
 @keyframes rainbow-flow {
   0% { background-position: 0% 50%; }
   100% { background-position: 200% 50%; }

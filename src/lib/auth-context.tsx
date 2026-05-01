@@ -19,6 +19,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 const PASSWORDS: Record<string, UserRole> = {
   war: "client",
   tin: "coach",
+  Tin: "coach",
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
