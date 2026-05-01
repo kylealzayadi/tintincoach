@@ -14,8 +14,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Project WAR by TIN",
-  description: "Fitness coaching dashboard",
+  title: "Project WAR by TinTin",
+  description: "Daily nutrition, WHOOP recovery, and gear tracking dashboard for client and coach.",
+  metadataBase: new URL("https://tintincoach.vercel.app"),
+  openGraph: {
+    title: "Project WAR by TinTin",
+    description: "Daily nutrition, WHOOP recovery, and gear tracking dashboard for client and coach.",
+    url: "https://tintincoach.vercel.app",
+    siteName: "Project WAR",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
