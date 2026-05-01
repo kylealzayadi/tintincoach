@@ -111,7 +111,7 @@ export default function DashboardPage() {
                 backgroundClip: "text",
               }}
             >
-              Dashboard
+              Client Dashboard
             </h1>
             <div className="flex bg-card border-2 border-border rounded-xl overflow-hidden">
               <button
