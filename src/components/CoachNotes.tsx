@@ -9,9 +9,10 @@ interface CoachNotesProps {
   notes: CoachNote[];
   role: UserRole;
   onUpdate?: () => void;
+  embedded?: boolean;
 }
 
-export default function CoachNotes({ notes, role, onUpdate }: CoachNotesProps) {
+export default function CoachNotes({ notes, role, onUpdate, embedded = false }: CoachNotesProps) {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
@@ -48,8 +49,8 @@ export default function CoachNotes({ notes, role, onUpdate }: CoachNotesProps) {
   }
 
   return (
-    <div className="bg-card border-2 border-border rounded-2xl p-4">
-      <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-3">Coach Notes</h3>
+    <div className={embedded ? "" : "bg-card border-2 border-border rounded-2xl p-4"}>
+      {!embedded && <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-3">Coach Notes</h3>}
       {notes.length === 0 ? (
         <p className="text-muted text-sm font-bold">No coach notes for this day</p>
       ) : (

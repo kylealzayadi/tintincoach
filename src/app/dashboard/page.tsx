@@ -17,6 +17,28 @@ import WhoopConnect, { getWhoopForDate } from "@/components/WhoopConnect";
 
 const REFRESH_INTERVAL = 2 * 60 * 60 * 1000;
 
+function Overlay({ title, badge, children, defaultOpen = false }: { title: string; badge?: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="bg-card border-2 border-border rounded-2xl overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-4 py-3 active:bg-background transition"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-black text-white uppercase tracking-wider">{title}</span>
+          {badge && (
+            <span className="bg-danger text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase animate-pulse">{badge}</span>
+          )}
+        </div>
+        <span className={`text-muted text-sm font-black transition-transform ${open ? "rotate-180" : ""}`}>▼</span>
+      </button>
+      {open && <div className="px-4 pb-4 pt-1">{children}</div>}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { auth } = useAuth();
   const router = useRouter();
@@ -70,6 +92,8 @@ export default function DashboardPage() {
     sleep: whoopData.sleep ?? log?.whoop_json?.sleep,
   };
 
+  const unreadNotes = notes.filter((n) => !n.read_by_client).length;
+
   return (
     <div className="min-h-screen pb-8">
       <Nav role="client" unreadCount={unreadCount} />
@@ -99,8 +123,14 @@ export default function DashboardPage() {
         ) : (
           <>
             <MacroCards log={log} />
-            <WhoopCard data={mergedWhoop} />
-            <GearProtocol />
+
+            <Overlay title="WHOOP">
+              <WhoopCard data={mergedWhoop} embedded />
+            </Overlay>
+
+            <Overlay title="Gear & Protocol">
+              <GearProtocol embedded />
+            </Overlay>
 
             {log?.client_notes && (
               <div className="bg-card border-2 border-border rounded-2xl p-4">
@@ -109,7 +139,10 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <CoachNotes notes={notes} role="client" onUpdate={loadData} />
+            <Overlay title="Coach Notes" badge={unreadNotes > 0 ? `${unreadNotes} new` : undefined}>
+              <CoachNotes notes={notes} role="client" onUpdate={loadData} embedded />
+            </Overlay>
+
             <TrendChart logs={recentLogs} />
           </>
         )}

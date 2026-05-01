@@ -95,7 +95,7 @@ function SupRow({ text }: { text: string }) {
   return <p className="text-[11px] font-bold text-muted leading-5">{text}</p>;
 }
 
-export default function GearProtocol() {
+export default function GearProtocol({ embedded = false }: { embedded?: boolean }) {
   const today = DAYS[new Date().getDay()];
   const [activeDay, setActiveDay] = useState<string>(today);
   const [showSupps, setShowSupps] = useState(false);
@@ -103,8 +103,8 @@ export default function GearProtocol() {
   const sched = SCHEDULE[activeDay];
 
   return (
-    <div className="bg-card border-2 border-border rounded-2xl p-4 space-y-3">
-      <h3 className="text-xs font-black text-muted uppercase tracking-wider">Gear & Protocol</h3>
+    <div className={embedded ? "space-y-3" : "bg-card border-2 border-border rounded-2xl p-4 space-y-3"}>
+      {!embedded && <h3 className="text-xs font-black text-muted uppercase tracking-wider">Gear & Protocol</h3>}
 
       {/* Day selector bar */}
       <div className="flex gap-1">

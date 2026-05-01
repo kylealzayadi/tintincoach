@@ -4,6 +4,7 @@ import type { WhoopData } from "@/lib/types";
 
 interface WhoopCardProps {
   data: WhoopData;
+  embedded?: boolean;
 }
 
 function recoveryLabel(score: number): { text: string; color: string; detail: string } {
@@ -49,7 +50,7 @@ function Metric({ label, value, unit, color, sub }: { label: string; value?: num
   );
 }
 
-export default function WhoopCard({ data }: WhoopCardProps) {
+export default function WhoopCard({ data, embedded = false }: WhoopCardProps) {
   const hasRecovery = data.recovery != null;
   const hasStrain = data.strain != null;
   const hasSleep = data.sleep != null;
@@ -57,8 +58,8 @@ export default function WhoopCard({ data }: WhoopCardProps) {
 
   if (!hasAny) {
     return (
-      <div className="bg-card border-2 border-border rounded-2xl p-4">
-        <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-2">WHOOP</h3>
+      <div className={embedded ? "" : "bg-card border-2 border-border rounded-2xl p-4"}>
+        {!embedded && <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-2">WHOOP</h3>}
         <p className="text-muted text-sm font-bold">No WHOOP data</p>
       </div>
     );
@@ -69,10 +70,12 @@ export default function WhoopCard({ data }: WhoopCardProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-black text-white uppercase tracking-wider">WHOOP</h2>
-        <p className="text-[10px] font-bold text-muted/60">Auto-refreshes every 2 hrs</p>
-      </div>
+      {!embedded && (
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-black text-white uppercase tracking-wider">WHOOP</h2>
+          <p className="text-[10px] font-bold text-muted/60">Auto-refreshes every 2 hrs</p>
+        </div>
+      )}
 
       {/* Recovery */}
       {hasRecovery && (
