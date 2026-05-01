@@ -11,6 +11,7 @@ export default function WhoopConnect({ onData, date }: WhoopConnectProps) {
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -54,8 +55,13 @@ export default function WhoopConnect({ onData, date }: WhoopConnectProps) {
         return;
       }
       const data = await res.json();
-      if (data.whoop && onData) {
-        onData(data.whoop);
+      const w = data.whoop;
+      const hasData = w && (w.recovery != null || w.strain != null || w.sleep != null);
+      if (hasData && onData) {
+        onData(w);
+        setStatus("Synced!");
+      } else {
+        setStatus(`No WHOOP data found for ${date}`);
       }
     } catch {
       setError("Failed to fetch WHOOP data");
@@ -91,6 +97,7 @@ export default function WhoopConnect({ onData, date }: WhoopConnectProps) {
         </>
       )}
       {error && <span className="text-xs text-danger">{error}</span>}
+      {status && !error && <span className="text-xs text-muted">{status}</span>}
     </div>
   );
 }
