@@ -21,22 +21,39 @@ async function whoopFetch(path: string, accessToken: string) {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!res.ok) {
-    const text = await res.text();
-    console.error(`WHOOP API error ${res.status} for ${path}:`, text);
-    return null;
-  }
+  if (!res.ok) return null;
   return res.json();
 }
 
-function dateFromISO(iso: string): string {
-  return iso.slice(0, 10);
+function toLocalDate(utcIso: string, offsetStr: string): string {
+  const d = new Date(utcIso);
+  const match = offsetStr.match(/^([+-])(\d{2}):(\d{2})$/);
+  if (!match) return utcIso.slice(0, 10);
+  const sign = match[1] === "+" ? 1 : -1;
+  const offsetMs = sign * (parseInt(match[2]) * 60 + parseInt(match[3])) * 60000;
+  const local = new Date(d.getTime() + offsetMs);
+  return local.toISOString().slice(0, 10);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function findCycleForDate(records: any[], targetDate: string) {
+  for (const cycle of records) {
+    const offset = cycle.timezone_offset || "+00:00";
+    const startLocal = toLocalDate(cycle.start, offset);
+    if (cycle.end) {
+      const endLocal = toLocalDate(cycle.end, offset);
+      if (targetDate >= startLocal && targetDate <= endLocal) return cycle;
+    } else {
+      if (targetDate >= startLocal) return cycle;
+    }
+  }
+  return null;
 }
 
 export async function GET(request: NextRequest) {
   let accessToken = request.cookies.get("whoop_access_token")?.value;
   const refreshToken = request.cookies.get("whoop_refresh_token")?.value;
-  let newCookies: { name: string; value: string; maxAge: number }[] = [];
+  const newCookies: { name: string; value: string; maxAge: number }[] = [];
 
   if (!accessToken && refreshToken) {
     const tokens = await refreshAccessToken(refreshToken);
@@ -58,63 +75,39 @@ export async function GET(request: NextRequest) {
   const date = searchParams.get("date");
 
   const [recoveryData, cycleData, sleepData] = await Promise.all([
-    whoopFetch(`/v2/recovery?limit=25`, accessToken),
-    whoopFetch(`/v2/cycle?limit=25`, accessToken),
-    whoopFetch(`/v2/activity/sleep?limit=25`, accessToken),
+    whoopFetch(`/v2/recovery?limit=10`, accessToken),
+    whoopFetch(`/v2/cycle?limit=10`, accessToken),
+    whoopFetch(`/v2/activity/sleep?limit=10`, accessToken),
   ]);
 
   let recovery: number | undefined;
   let strain: number | undefined;
   let sleep: number | undefined;
-  let debug: Record<string, unknown> = {};
 
   if (date && cycleData?.records) {
-    // WHOOP cycles: match by extracting date from "start" ISO timestamp
-    const cycle = cycleData.records.find(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (c: any) => c.start && dateFromISO(c.start) === date
-    );
-
-    debug.matchedCycle = cycle ? { id: cycle.id, start: cycle.start, score: cycle.score } : null;
-    debug.availableCycleDates = cycleData.records.slice(0, 5).map(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (c: any) => ({ start: c.start, date: c.start ? dateFromISO(c.start) : null })
-    );
+    const cycle = findCycleForDate(cycleData.records, date);
 
     if (cycle?.score) {
-      strain = cycle.score.strain;
+      strain = Math.round(cycle.score.strain * 100) / 100;
     }
 
-    // Recovery is linked to a cycle
     if (cycle && recoveryData?.records) {
-      const rec = recoveryData.records.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (r: any) => r.cycle_id === cycle.id
-      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rec = recoveryData.records.find((r: any) => r.cycle_id === cycle.id);
       if (rec?.score) {
         recovery = rec.score.recovery_score;
       }
-      debug.matchedRecovery = rec ? { cycle_id: rec.cycle_id, score: rec.score } : null;
     }
-  }
 
-  if (date && sleepData?.records) {
-    // Sleep: match by date from "start" timestamp
-    const sleepRecord = sleepData.records.find(
+    if (cycle && sleepData?.records) {
+      // Find the primary (non-nap) sleep for this cycle
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (s: any) => s.start && dateFromISO(s.start) === date
-    );
-
-    debug.matchedSleep = sleepRecord ? { start: sleepRecord.start, score: sleepRecord.score } : null;
-    debug.availableSleepDates = sleepData.records.slice(0, 5).map(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (s: any) => ({ start: s.start, date: s.start ? dateFromISO(s.start) : null })
-    );
-
-    if (sleepRecord?.score?.stage_summary) {
-      const totalMs = sleepRecord.score.stage_summary.total_in_bed_time_milli -
-        sleepRecord.score.stage_summary.total_awake_time_milli;
-      sleep = Math.round((totalMs / 1000 / 60 / 60) * 10) / 10;
+      const sleepRecord = sleepData.records.find((s: any) => s.cycle_id === cycle.id && !s.nap);
+      if (sleepRecord?.score?.stage_summary) {
+        const totalMs = sleepRecord.score.stage_summary.total_in_bed_time_milli -
+          sleepRecord.score.stage_summary.total_awake_time_milli;
+        sleep = Math.round((totalMs / 1000 / 60 / 60) * 10) / 10;
+      }
     }
   }
 
@@ -122,7 +115,6 @@ export async function GET(request: NextRequest) {
     connected: true,
     requestedDate: date,
     whoop: { recovery, strain, sleep },
-    debug,
   });
 
   for (const cookie of newCookies) {
