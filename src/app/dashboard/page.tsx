@@ -101,18 +101,23 @@ export default function DashboardPage() {
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-5">
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <h1
-              className="text-2xl sm:text-3xl font-black uppercase tracking-wider animate-rainbow"
-              style={{
-                backgroundImage: "linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00aaff, #8800ff, #ff00ff, #ff0000)",
-                backgroundSize: "200% 100%",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="bg-accent hover:bg-accent-hover px-4 py-2 rounded-xl text-sm font-black uppercase tracking-wider transition-all active:scale-95 hover:shadow-[0_0_20px_var(--color-accent-glow)]"
             >
-              Client Dashboard
-            </h1>
+              <span
+                className="animate-rainbow"
+                style={{
+                  backgroundImage: "linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00aaff, #8800ff, #ff00ff, #ff0000)",
+                  backgroundSize: "200% 100%",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
+                Client Dashboard
+              </span>
+            </button>
             <div className="flex bg-card border-2 border-border rounded-xl overflow-hidden">
               <button
                 onClick={() => { setViewMode("overlay"); setExpanded(null); }}
