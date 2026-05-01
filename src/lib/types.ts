@@ -72,5 +72,9 @@ export interface CoachNote {
   coach_id: string;
   date: string;
   note: string;
+  reply: string | null;
+  replied_at: string | null;
+  read_by_client: boolean;
+  read_by_coach: boolean;
   created_at: string;
 }

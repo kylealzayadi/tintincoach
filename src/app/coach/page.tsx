@@ -9,6 +9,8 @@ import {
   getLogsByDateRange,
   getCoachNotesByDate,
   addCoachNote,
+  getUnreadCountForCoach,
+  markRepliesReadByCoach,
 } from "@/lib/store";
 import type { DailyLog, CoachNote, WhoopData } from "@/lib/types";
 import Nav from "@/components/Nav";
@@ -33,6 +35,7 @@ export default function CoachPage() {
   const [whoopDays, setWhoopDays] = useState<Record<string, WhoopData>>({});
   const [newNote, setNewNote] = useState("");
   const [posting, setPosting] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [lastViewed] = useState(() => {
@@ -60,18 +63,27 @@ export default function CoachPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     const dateStr = format(date, "yyyy-MM-dd");
-    const [logData, notesData, trendsData] = await Promise.all([
+    const [logData, notesData, trendsData, unread] = await Promise.all([
       getLogByDate(dateStr),
       getCoachNotesByDate(dateStr),
       getLogsByDateRange(
         format(subDays(new Date(), 7), "yyyy-MM-dd"),
         format(new Date(), "yyyy-MM-dd")
       ),
+      getUnreadCountForCoach(),
     ]);
     setLog(logData);
     setNotes(notesData);
     setRecentLogs(trendsData);
+    setUnreadCount(unread);
     setLastRefresh(new Date());
+
+    const unreadReplyIds = notesData.filter((n) => n.reply && !n.read_by_coach).map((n) => n.id);
+    if (unreadReplyIds.length > 0) {
+      await markRepliesReadByCoach(unreadReplyIds);
+      setUnreadCount((c) => Math.max(0, c - unreadReplyIds.length));
+    }
+
     setLoading(false);
   }, [date]);
 
@@ -111,7 +123,7 @@ export default function CoachPage() {
 
   return (
     <div className="min-h-screen pb-8">
-      <Nav role="coach" />
+      <Nav role="coach" unreadCount={unreadCount} />
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-5">
         <div className="flex flex-col gap-4">
           <div>
@@ -154,7 +166,7 @@ export default function CoachPage() {
           </>
         )}
 
-        <CoachNotes notes={notes} />
+        <CoachNotes notes={notes} role="coach" onUpdate={loadData} />
 
         <div className="bg-card border-2 border-border rounded-2xl p-4">
           <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-3">Add Note</h3>

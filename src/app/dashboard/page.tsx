@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { format, subDays } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getLogByDate, getLogsByDateRange, getCoachNotesByDate } from "@/lib/store";
+import { getLogByDate, getLogsByDateRange, getCoachNotesByDate, getUnreadCountForClient, markNotesReadByClient } from "@/lib/store";
 import type { DailyLog, CoachNote, WhoopData } from "@/lib/types";
 import Nav from "@/components/Nav";
 import DateSelector from "@/components/DateSelector";
@@ -27,6 +27,7 @@ export default function DashboardPage() {
   const [notes, setNotes] = useState<CoachNote[]>([]);
   const [recentLogs, setRecentLogs] = useState<DailyLog[]>([]);
   const [whoopData, setWhoopData] = useState<WhoopData>({});
+  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,18 +38,27 @@ export default function DashboardPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     const dateStr = format(date, "yyyy-MM-dd");
-    const [logData, notesData, trendsData] = await Promise.all([
+    const [logData, notesData, trendsData, unread] = await Promise.all([
       getLogByDate(dateStr),
       getCoachNotesByDate(dateStr),
       getLogsByDateRange(
         format(subDays(new Date(), 7), "yyyy-MM-dd"),
         format(new Date(), "yyyy-MM-dd")
       ),
+      getUnreadCountForClient(),
     ]);
     setLog(logData);
     setNotes(notesData);
     setRecentLogs(trendsData);
+    setUnreadCount(unread);
     setWhoopData(getWhoopForDate(dateStr) ?? {});
+
+    const unreadIds = notesData.filter((n) => !n.read_by_client).map((n) => n.id);
+    if (unreadIds.length > 0) {
+      await markNotesReadByClient(unreadIds);
+      setUnreadCount((c) => Math.max(0, c - unreadIds.length));
+    }
+
     setLoading(false);
   }, [date]);
 
@@ -70,7 +80,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen pb-8">
-      <Nav role="client" />
+      <Nav role="client" unreadCount={unreadCount} />
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-5">
         <div className="flex flex-col gap-4">
           <div>
@@ -99,7 +109,7 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <CoachNotes notes={notes} />
+            <CoachNotes notes={notes} role="client" onUpdate={loadData} />
             <TrendChart logs={recentLogs} />
           </>
         )}

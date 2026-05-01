@@ -5,10 +5,9 @@ import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getLogByDate, upsertLog } from "@/lib/store";
-import type { GearEntry, FoodEntry, ExerciseEntry, WhoopData } from "@/lib/types";
+import type { FoodEntry } from "@/lib/types";
 import Nav from "@/components/Nav";
 import DateSelector from "@/components/DateSelector";
-import WhoopConnect, { getWhoopForDate } from "@/components/WhoopConnect";
 
 const inputClass = "w-full bg-background border-2 border-border rounded-xl px-3 py-3 text-sm font-bold focus:outline-none focus:border-accent focus:shadow-[0_0_15px_var(--color-accent-glow)] transition-all placeholder:text-muted/50";
 
@@ -20,12 +19,7 @@ export default function LogPage() {
   const [protein, setProtein] = useState("");
   const [carbs, setCarbs] = useState("");
   const [fats, setFats] = useState("");
-  const [gear, setGear] = useState<GearEntry[]>([]);
   const [food, setFood] = useState<FoodEntry[]>([]);
-  const [exercises, setExercises] = useState<ExerciseEntry[]>([]);
-  const [whoopRecovery, setWhoopRecovery] = useState("");
-  const [whoopStrain, setWhoopStrain] = useState("");
-  const [whoopSleep, setWhoopSleep] = useState("");
   const [clientNotes, setClientNotes] = useState("");
   const [isUpdate, setIsUpdate] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -51,27 +45,15 @@ export default function LogPage() {
       setProtein(log.protein?.toString() ?? "");
       setCarbs(log.carbs?.toString() ?? "");
       setFats(log.fats?.toString() ?? "");
-      setGear(log.gear_json ?? []);
       setFood(log.food_json ?? []);
-      setExercises(log.exercise_json ?? []);
-      setWhoopRecovery(log.whoop_json?.recovery?.toString() ?? "");
-      setWhoopStrain(log.whoop_json?.strain?.toString() ?? "");
-      setWhoopSleep(log.whoop_json?.sleep?.toString() ?? "");
       setClientNotes(log.client_notes ?? "");
     } else {
       setIsUpdate(false);
       setCalories(""); setProtein(""); setCarbs(""); setFats("");
-      setGear([]); setFood([]); setExercises([]);
-      setWhoopRecovery(""); setWhoopStrain(""); setWhoopSleep("");
+      setFood([]);
       setClientNotes("");
     }
   }
-
-  function addGearRow() { setGear([...gear, { compound: "", dose: "" }]); }
-  function updateGear(i: number, field: keyof GearEntry, value: string) {
-    const u = [...gear]; u[i] = { ...u[i], [field]: value }; setGear(u);
-  }
-  function removeGear(i: number) { setGear(gear.filter((_, idx) => idx !== i)); }
 
   function addFoodRow() { setFood([...food, { meal: "", description: "" }]); }
   function updateFood(i: number, field: keyof FoodEntry, value: string) {
@@ -79,19 +61,9 @@ export default function LogPage() {
   }
   function removeFood(i: number) { setFood(food.filter((_, idx) => idx !== i)); }
 
-  function addExerciseRow() { setExercises([...exercises, { exercise: "", sets: "", reps: "", weight: "", notes: "" }]); }
-  function updateExercise(i: number, field: keyof ExerciseEntry, value: string) {
-    const u = [...exercises]; u[i] = { ...u[i], [field]: value }; setExercises(u);
-  }
-  function removeExercise(i: number) { setExercises(exercises.filter((_, idx) => idx !== i)); }
-
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const whoopJson: WhoopData = {};
-    if (whoopRecovery) whoopJson.recovery = Number(whoopRecovery);
-    if (whoopStrain) whoopJson.strain = Number(whoopStrain);
-    if (whoopSleep) whoopJson.sleep = Number(whoopSleep);
 
     await upsertLog({
       date: format(date, "yyyy-MM-dd"),
@@ -99,10 +71,10 @@ export default function LogPage() {
       protein: protein ? Number(protein) : null,
       carbs: carbs ? Number(carbs) : null,
       fats: fats ? Number(fats) : null,
-      gear_json: gear.filter((g) => g.compound.trim()),
+      gear_json: [],
       food_json: food.filter((f) => f.description.trim()),
-      exercise_json: exercises.filter((ex) => ex.exercise.trim()),
-      whoop_json: whoopJson,
+      exercise_json: [],
+      whoop_json: {},
       client_notes: clientNotes || null,
     });
 
@@ -168,77 +140,6 @@ export default function LogPage() {
                   <button type="button" onClick={() => removeFood(i)} className="text-muted hover:text-danger text-sm font-black transition px-2">x</button>
                 </div>
                 <textarea value={entry.description} onChange={(e) => updateFood(i, "description", e.target.value)} placeholder="What did you eat?" rows={2} className={inputClass + " resize-none"} />
-              </div>
-            ))}
-          </div>
-
-          {/* Exercise */}
-          <div className="bg-card border-2 border-border rounded-2xl p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-black text-muted uppercase tracking-wider">Exercise</h2>
-              <button type="button" onClick={addExerciseRow} className="text-xs font-black text-accent hover:text-accent-hover transition active:scale-95">+ Add exercise</button>
-            </div>
-            {exercises.length === 0 && <p className="text-muted text-sm font-bold">No exercises logged</p>}
-            {exercises.map((entry, i) => (
-              <div key={i} className="space-y-2 border-l-2 border-cyan pl-3">
-                <div className="flex gap-2 items-center">
-                  <input type="text" value={entry.exercise} onChange={(e) => updateExercise(i, "exercise", e.target.value)} placeholder="Exercise name" className={inputClass + " flex-1"} />
-                  <button type="button" onClick={() => removeExercise(i)} className="text-muted hover:text-danger text-sm font-black transition px-2">x</button>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <input type="text" value={entry.sets} onChange={(e) => updateExercise(i, "sets", e.target.value)} placeholder="Sets" className={inputClass} />
-                  <input type="text" value={entry.reps} onChange={(e) => updateExercise(i, "reps", e.target.value)} placeholder="Reps" className={inputClass} />
-                  <input type="text" value={entry.weight} onChange={(e) => updateExercise(i, "weight", e.target.value)} placeholder="Weight" className={inputClass} />
-                </div>
-                <input type="text" value={entry.notes} onChange={(e) => updateExercise(i, "notes", e.target.value)} placeholder="Notes (optional)" className={inputClass} />
-              </div>
-            ))}
-          </div>
-
-          {/* WHOOP */}
-          <div className="bg-card border-2 border-border rounded-2xl p-4 space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <h2 className="text-xs font-black text-muted uppercase tracking-wider">WHOOP</h2>
-              <WhoopConnect
-                date={format(date, "yyyy-MM-dd")}
-                onSync={() => {
-                  const w = getWhoopForDate(format(date, "yyyy-MM-dd"));
-                  if (w) {
-                    if (w.recovery != null) setWhoopRecovery(String(w.recovery));
-                    if (w.strain != null) setWhoopStrain(String(w.strain));
-                    if (w.sleep != null) setWhoopSleep(String(w.sleep));
-                  }
-                }}
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-black text-muted uppercase tracking-wider mb-1">Recovery %</label>
-                <input type="number" value={whoopRecovery} onChange={(e) => setWhoopRecovery(e.target.value)} className={inputClass} placeholder="0" min="0" max="100" />
-              </div>
-              <div>
-                <label className="block text-xs font-black text-muted uppercase tracking-wider mb-1">Strain</label>
-                <input type="number" step="0.1" value={whoopStrain} onChange={(e) => setWhoopStrain(e.target.value)} className={inputClass} placeholder="0" />
-              </div>
-              <div>
-                <label className="block text-xs font-black text-muted uppercase tracking-wider mb-1">Sleep (hrs)</label>
-                <input type="number" step="0.1" value={whoopSleep} onChange={(e) => setWhoopSleep(e.target.value)} className={inputClass} placeholder="0" />
-              </div>
-            </div>
-          </div>
-
-          {/* Gear */}
-          <div className="bg-card border-2 border-border rounded-2xl p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-black text-muted uppercase tracking-wider">Gear</h2>
-              <button type="button" onClick={addGearRow} className="text-xs font-black text-accent hover:text-accent-hover transition active:scale-95">+ Add compound</button>
-            </div>
-            {gear.length === 0 && <p className="text-muted text-sm font-bold">No gear logged</p>}
-            {gear.map((entry, i) => (
-              <div key={i} className="flex gap-2 items-center">
-                <input type="text" value={entry.compound} onChange={(e) => updateGear(i, "compound", e.target.value)} placeholder="Compound" className={inputClass + " flex-1"} />
-                <input type="text" value={entry.dose} onChange={(e) => updateGear(i, "dose", e.target.value)} placeholder="Dose" className={inputClass + " w-28"} />
-                <button type="button" onClick={() => removeGear(i)} className="text-muted hover:text-danger text-sm font-black transition px-2">x</button>
               </div>
             ))}
           </div>

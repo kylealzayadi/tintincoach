@@ -69,6 +69,69 @@ export async function deleteCoachNote(id: string): Promise<void> {
   await supabase.from("coach_notes").delete().eq("id", id);
 }
 
+export async function getUnreadCountForClient(): Promise<number> {
+  const { count } = await supabase
+    .from("coach_notes")
+    .select("*", { count: "exact", head: true })
+    .eq("read_by_client", false);
+  return count ?? 0;
+}
+
+export async function getUnreadCountForCoach(): Promise<number> {
+  const { count } = await supabase
+    .from("coach_notes")
+    .select("*", { count: "exact", head: true })
+    .not("reply", "is", null)
+    .eq("read_by_coach", false);
+  return count ?? 0;
+}
+
+export async function markNotesReadByClient(noteIds: string[]): Promise<void> {
+  if (noteIds.length === 0) return;
+  await supabase
+    .from("coach_notes")
+    .update({ read_by_client: true })
+    .in("id", noteIds);
+}
+
+export async function markRepliesReadByCoach(noteIds: string[]): Promise<void> {
+  if (noteIds.length === 0) return;
+  await supabase
+    .from("coach_notes")
+    .update({ read_by_coach: true })
+    .in("id", noteIds);
+}
+
+export async function replyToNote(noteId: string, reply: string): Promise<void> {
+  await supabase
+    .from("coach_notes")
+    .update({
+      reply,
+      replied_at: new Date().toISOString(),
+      read_by_coach: false,
+    })
+    .eq("id", noteId);
+}
+
+export async function getAllUnreadNotes(): Promise<CoachNote[]> {
+  const { data } = await supabase
+    .from("coach_notes")
+    .select("*")
+    .eq("read_by_client", false)
+    .order("created_at", { ascending: false });
+  return data ?? [];
+}
+
+export async function getAllUnreadReplies(): Promise<CoachNote[]> {
+  const { data } = await supabase
+    .from("coach_notes")
+    .select("*")
+    .not("reply", "is", null)
+    .eq("read_by_coach", false)
+    .order("replied_at", { ascending: false });
+  return data ?? [];
+}
+
 // WHOOP Tokens
 
 export async function getWhoopTokens(): Promise<{ access_token: string; refresh_token: string | null; expires_at: string | null } | null> {

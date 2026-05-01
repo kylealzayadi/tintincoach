@@ -7,9 +7,10 @@ import type { UserRole } from "@/lib/types";
 
 interface NavProps {
   role: UserRole;
+  unreadCount?: number;
 }
 
-export default function Nav({ role }: NavProps) {
+export default function Nav({ role, unreadCount = 0 }: NavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { logout } = useAuth();
@@ -31,8 +32,13 @@ export default function Nav({ role }: NavProps) {
     <nav className="border-b-2 border-border bg-card sticky top-0 z-50">
       <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link href={role === "coach" ? "/coach" : "/dashboard"} className="font-black text-base mr-3">
+          <Link href={role === "coach" ? "/coach" : "/dashboard"} className="font-black text-base mr-3 relative">
             <span className="text-white">PROJECT </span><span className="text-accent">WAR</span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-2 -right-4 bg-danger text-white text-[10px] font-black rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
           </Link>
           {links.map((link) => (
             <Link
