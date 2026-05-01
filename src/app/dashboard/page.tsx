@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { format, subDays } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getLogByDate, getLogsByDateRange, getCoachNotesByDate, getUnreadCountForClient, markNotesReadByClient } from "@/lib/store";
+import { getLogByDate, getLogsByDateRange, getCoachNotesByDate, getUnreadCountForClient } from "@/lib/store";
 import type { DailyLog, CoachNote, WhoopData } from "@/lib/types";
 import Nav from "@/components/Nav";
 import DateSelector from "@/components/DateSelector";
@@ -33,6 +33,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!auth) { router.replace("/login"); return; }
     if (auth.role === "coach") { router.replace("/coach"); }
+    window.scrollTo(0, 0);
   }, [auth, router]);
 
   const loadData = useCallback(async () => {
@@ -52,13 +53,6 @@ export default function DashboardPage() {
     setRecentLogs(trendsData);
     setUnreadCount(unread);
     setWhoopData(getWhoopForDate(dateStr) ?? {});
-
-    const unreadIds = notesData.filter((n) => !n.read_by_client).map((n) => n.id);
-    if (unreadIds.length > 0) {
-      await markNotesReadByClient(unreadIds);
-      setUnreadCount((c) => Math.max(0, c - unreadIds.length));
-    }
-
     setLoading(false);
   }, [date]);
 

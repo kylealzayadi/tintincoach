@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import type { CoachNote, UserRole } from "@/lib/types";
-import { replyToNote } from "@/lib/store";
+import { replyToNote, markNotesReadByClient, markRepliesReadByCoach } from "@/lib/store";
 
 interface CoachNotesProps {
   notes: CoachNote[];
@@ -15,6 +15,7 @@ export default function CoachNotes({ notes, role, onUpdate }: CoachNotesProps) {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   async function handleReply(noteId: string) {
     if (!replyText.trim()) return;
@@ -23,6 +24,16 @@ export default function CoachNotes({ notes, role, onUpdate }: CoachNotesProps) {
     setReplyText("");
     setReplyingTo(null);
     setSending(false);
+    if (onUpdate) onUpdate();
+  }
+
+  async function handleDismiss(noteId: string) {
+    if (role === "client") {
+      await markNotesReadByClient([noteId]);
+    } else {
+      await markRepliesReadByCoach([noteId]);
+    }
+    setDismissed((prev) => new Set(prev).add(noteId));
     if (onUpdate) onUpdate();
   }
 
@@ -39,8 +50,13 @@ export default function CoachNotes({ notes, role, onUpdate }: CoachNotesProps) {
               <div className="border-l-2 border-accent pl-3">
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className="text-[10px] font-black text-accent uppercase tracking-wider">Coach</span>
-                  {role === "client" && !note.read_by_client && (
-                    <span className="bg-danger text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase">New</span>
+                  {role === "client" && !note.read_by_client && !dismissed.has(note.id) && (
+                    <button
+                      onClick={() => handleDismiss(note.id)}
+                      className="bg-danger text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase hover:bg-danger/80 transition active:scale-95"
+                    >
+                      New
+                    </button>
                   )}
                 </div>
                 <p className="text-sm font-bold whitespace-pre-wrap text-white">{note.note}</p>
@@ -54,8 +70,13 @@ export default function CoachNotes({ notes, role, onUpdate }: CoachNotesProps) {
                 <div className="border-l-2 border-success pl-3 ml-4">
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-[10px] font-black text-success uppercase tracking-wider">Client Reply</span>
-                    {role === "coach" && !note.read_by_coach && (
-                      <span className="bg-danger text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase">New</span>
+                    {role === "coach" && !note.read_by_coach && !dismissed.has(note.id) && (
+                      <button
+                        onClick={() => handleDismiss(note.id)}
+                        className="bg-danger text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase hover:bg-danger/80 transition active:scale-95"
+                      >
+                        New
+                      </button>
                     )}
                   </div>
                   <p className="text-sm font-bold whitespace-pre-wrap text-white">{note.reply}</p>

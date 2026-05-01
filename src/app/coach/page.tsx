@@ -10,7 +10,6 @@ import {
   getCoachNotesByDate,
   addCoachNote,
   getUnreadCountForCoach,
-  markRepliesReadByCoach,
 } from "@/lib/store";
 import type { DailyLog, CoachNote, WhoopData } from "@/lib/types";
 import Nav from "@/components/Nav";
@@ -48,6 +47,7 @@ export default function CoachPage() {
   useEffect(() => {
     if (!auth) { router.replace("/login"); return; }
     if (auth.role !== "coach") { router.replace("/dashboard"); }
+    window.scrollTo(0, 0);
   }, [auth, router]);
 
   const fetchWhoop = useCallback(async () => {
@@ -77,13 +77,6 @@ export default function CoachPage() {
     setRecentLogs(trendsData);
     setUnreadCount(unread);
     setLastRefresh(new Date());
-
-    const unreadReplyIds = notesData.filter((n) => n.reply && !n.read_by_coach).map((n) => n.id);
-    if (unreadReplyIds.length > 0) {
-      await markRepliesReadByCoach(unreadReplyIds);
-      setUnreadCount((c) => Math.max(0, c - unreadReplyIds.length));
-    }
-
     setLoading(false);
   }, [date]);
 
