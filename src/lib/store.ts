@@ -69,11 +69,12 @@ export async function getCoachNotesByDate(date: string): Promise<CoachNote[]> {
 }
 
 export async function addCoachNote(date: string, note: string): Promise<CoachNote | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("coach_notes")
     .insert({ date, note })
     .select()
     .single();
+  if (error) console.error("addCoachNote error:", error);
   return data;
 }
 

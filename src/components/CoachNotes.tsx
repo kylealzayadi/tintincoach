@@ -60,7 +60,7 @@ export default function CoachNotes({ notes, role, onUpdate, embedded = false }: 
               {/* Coach's note */}
               <div className="border-l-2 border-accent pl-3">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-[10px] font-black text-accent uppercase tracking-wider">Coach</span>
+                  <span className="text-[10px] font-black text-accent uppercase tracking-wider">TinTin (Coach)</span>
                   {role === "client" && !note.read_by_client && !dismissed.has(note.id) && (
                     <button
                       onClick={() => handleDismiss(note.id)}
@@ -88,7 +88,7 @@ export default function CoachNotes({ notes, role, onUpdate, embedded = false }: 
               {note.reply && (
                 <div className="border-l-2 border-success pl-3 ml-4">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[10px] font-black text-success uppercase tracking-wider">Client Reply</span>
+                    <span className="text-[10px] font-black text-success uppercase tracking-wider">War (Client)</span>
                     {role === "coach" && !note.read_by_coach && !dismissed.has(note.id) && (
                       <button
                         onClick={() => handleDismiss(note.id)}
