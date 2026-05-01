@@ -10,7 +10,6 @@ import Nav from "@/components/Nav";
 import DateSelector from "@/components/DateSelector";
 import MacroCards from "@/components/MacroCards";
 import WhoopCard from "@/components/WhoopCard";
-import FoodList from "@/components/FoodList";
 import GearProtocol from "@/components/GearProtocol";
 import CoachNotes from "@/components/CoachNotes";
 import TrendChart from "@/components/TrendChart";
@@ -101,7 +100,6 @@ export default function DashboardPage() {
           <>
             <MacroCards log={log} />
             <WhoopCard data={mergedWhoop} />
-            <FoodList food={log?.food_json ?? []} />
             <GearProtocol />
 
             {log?.client_notes && (

@@ -52,6 +52,7 @@ export interface WhoopData {
 
 export interface MealMacros {
   meal: string;
+  description: string;
   calories: number | null;
   protein: number | null;
   carbs: number | null;

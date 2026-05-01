@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getLogByDate, upsertLog } from "@/lib/store";
-import type { FoodEntry, MealMacros } from "@/lib/types";
+import type { MealMacros } from "@/lib/types";
 import Nav from "@/components/Nav";
 import DateSelector from "@/components/DateSelector";
 
@@ -13,8 +13,8 @@ const inputClass = "w-full bg-background border-2 border-border rounded-xl px-3 
 
 const MEALS = ["Breakfast", "AM Snack", "Lunch", "PM Snack", "Dinner"] as const;
 
-type MealFields = { calories: string; protein: string; carbs: string; fats: string };
-const emptyMeal: MealFields = { calories: "", protein: "", carbs: "", fats: "" };
+type MealFields = { description: string; calories: string; protein: string; carbs: string; fats: string };
+const emptyMeal: MealFields = { description: "", calories: "", protein: "", carbs: "", fats: "" };
 
 export default function LogPage() {
   const { auth } = useAuth();
@@ -22,7 +22,6 @@ export default function LogPage() {
   const [date, setDate] = useState(new Date());
   const [meals, setMeals] = useState<Record<string, MealFields>>({});
   const [activeMeal, setActiveMeal] = useState<string>(MEALS[0]);
-  const [food, setFood] = useState<FoodEntry[]>([]);
   const [clientNotes, setClientNotes] = useState("");
   const [isUpdate, setIsUpdate] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -45,13 +44,13 @@ export default function LogPage() {
 
     if (log) {
       setIsUpdate(true);
-      setFood(log.food_json ?? []);
       setClientNotes(log.client_notes ?? "");
 
       const loaded: Record<string, MealFields> = {};
       if (log.meals_json && log.meals_json.length > 0) {
         for (const m of log.meals_json) {
           loaded[m.meal] = {
+            description: m.description ?? "",
             calories: m.calories?.toString() ?? "",
             protein: m.protein?.toString() ?? "",
             carbs: m.carbs?.toString() ?? "",
@@ -60,6 +59,7 @@ export default function LogPage() {
         }
       } else if (log.calories || log.protein || log.carbs || log.fats) {
         loaded["Breakfast"] = {
+          description: "",
           calories: log.calories?.toString() ?? "",
           protein: log.protein?.toString() ?? "",
           carbs: log.carbs?.toString() ?? "",
@@ -70,7 +70,6 @@ export default function LogPage() {
     } else {
       setIsUpdate(false);
       setMeals({});
-      setFood([]);
       setClientNotes("");
     }
   }
@@ -89,7 +88,7 @@ export default function LogPage() {
   function mealHasData(name: string): boolean {
     const m = meals[name];
     if (!m) return false;
-    return !!(m.calories || m.protein || m.carbs || m.fats);
+    return !!(m.calories || m.protein || m.carbs || m.fats || m.description.trim());
   }
 
   const totals = MEALS.reduce(
@@ -108,12 +107,6 @@ export default function LogPage() {
 
   const hasMealData = MEALS.some(mealHasData);
 
-  function addFoodRow() { setFood([...food, { meal: "", description: "" }]); }
-  function updateFood(i: number, field: keyof FoodEntry, value: string) {
-    const u = [...food]; u[i] = { ...u[i], [field]: value }; setFood(u);
-  }
-  function removeFood(i: number) { setFood(food.filter((_, idx) => idx !== i)); }
-
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -124,12 +117,17 @@ export default function LogPage() {
         const m = meals[meal]!;
         return {
           meal,
+          description: m.description.trim(),
           calories: m.calories ? Number(m.calories) : null,
           protein: m.protein ? Number(m.protein) : null,
           carbs: m.carbs ? Number(m.carbs) : null,
           fats: m.fats ? Number(m.fats) : null,
         };
       });
+
+    const foodJson = mealsJson
+      .filter((m) => m.description)
+      .map((m) => ({ meal: m.meal, description: m.description }));
 
     await upsertLog({
       date: format(date, "yyyy-MM-dd"),
@@ -138,7 +136,7 @@ export default function LogPage() {
       carbs: hasMealData ? totals.carbs : null,
       fats: hasMealData ? totals.fats : null,
       gear_json: [],
-      food_json: food.filter((f) => f.description.trim()),
+      food_json: foodJson,
       exercise_json: [],
       whoop_json: {},
       meals_json: mealsJson,
@@ -191,23 +189,43 @@ export default function LogPage() {
             {/* Active meal inputs */}
             <div className="border-l-2 border-accent pl-3 space-y-3">
               <p className="text-xs font-black text-accent uppercase tracking-wider">{activeMeal}</p>
+              <textarea
+                value={current.description}
+                onChange={(e) => updateMealField(activeMeal, "description", e.target.value)}
+                rows={2}
+                placeholder="What did you eat?"
+                className={inputClass + " resize-none"}
+              />
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-black text-muted uppercase tracking-wider mb-1">Calories</label>
-                  <input type="number" value={current.calories} onChange={(e) => updateMealField(activeMeal, "calories", e.target.value)} className={inputClass} placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-xs font-black text-muted uppercase tracking-wider mb-1">Protein (g)</label>
-                  <input type="number" value={current.protein} onChange={(e) => updateMealField(activeMeal, "protein", e.target.value)} className={inputClass} placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-xs font-black text-muted uppercase tracking-wider mb-1">Carbs (g)</label>
-                  <input type="number" value={current.carbs} onChange={(e) => updateMealField(activeMeal, "carbs", e.target.value)} className={inputClass} placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-xs font-black text-muted uppercase tracking-wider mb-1">Fats (g)</label>
-                  <input type="number" value={current.fats} onChange={(e) => updateMealField(activeMeal, "fats", e.target.value)} className={inputClass} placeholder="0" />
-                </div>
+                {(["calories", "protein", "carbs", "fats"] as const).map((field) => (
+                  <div key={field}>
+                    <label className="block text-xs font-black text-muted uppercase tracking-wider mb-1">
+                      {field === "calories" ? "Calories" : field === "protein" ? "Protein (g)" : field === "carbs" ? "Carbs (g)" : "Fats (g)"}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={current[field]}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "" || /^\d*\.?\d*$/.test(v)) updateMealField(activeMeal, field, v);
+                        }}
+                        className={inputClass + " pr-8"}
+                        placeholder="0"
+                      />
+                      {current[field] && (
+                        <button
+                          type="button"
+                          onClick={() => updateMealField(activeMeal, field, "")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-danger text-sm font-black transition"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -221,24 +239,29 @@ export default function LogPage() {
                       key={meal}
                       type="button"
                       onClick={() => setActiveMeal(meal)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-all active:scale-[0.98] ${
+                      className={`w-full px-3 py-2 rounded-xl text-left transition-all active:scale-[0.98] ${
                         activeMeal === meal ? "bg-accent/10 border border-accent/30" : "hover:bg-background"
                       }`}
                     >
-                      <span className="text-xs font-black text-white uppercase tracking-wider">{meal}</span>
-                      <span className="text-xs font-bold text-muted">
-                        {m.calories || 0}
-                        <span className="text-white/40"> cal</span>
-                        {" · "}
-                        {m.protein || 0}
-                        <span className="text-cyan/60">p</span>
-                        {" · "}
-                        {m.carbs || 0}
-                        <span className="text-warning/60">c</span>
-                        {" · "}
-                        {m.fats || 0}
-                        <span className="text-pink/60">f</span>
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-white uppercase tracking-wider">{meal}</span>
+                        <span className="text-xs font-bold text-muted">
+                          {m.calories || 0}
+                          <span className="text-white/40"> cal</span>
+                          {" · "}
+                          {m.protein || 0}
+                          <span className="text-cyan/60">p</span>
+                          {" · "}
+                          {m.carbs || 0}
+                          <span className="text-warning/60">c</span>
+                          {" · "}
+                          {m.fats || 0}
+                          <span className="text-pink/60">f</span>
+                        </span>
+                      </div>
+                      {m.description && (
+                        <p className="text-[11px] font-bold text-muted/70 mt-0.5 truncate">{m.description}</p>
+                      )}
                     </button>
                   );
                 })}
@@ -262,32 +285,6 @@ export default function LogPage() {
                 </div>
               </div>
             )}
-          </div>
-
-          {/* Food Log */}
-          <div className="bg-card border-2 border-border rounded-2xl p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-black text-muted uppercase tracking-wider">Food Log</h2>
-              <button type="button" onClick={addFoodRow} className="text-xs font-black text-accent hover:text-accent-hover transition active:scale-95">+ Add meal</button>
-            </div>
-            {food.length === 0 && <p className="text-muted text-sm font-bold">No meals logged</p>}
-            {food.map((entry, i) => (
-              <div key={i} className="space-y-2 border-l-2 border-warning pl-3">
-                <div className="flex gap-2 items-center">
-                  <select value={entry.meal} onChange={(e) => updateFood(i, "meal", e.target.value)} className={inputClass + " w-32 flex-shrink-0"}>
-                    <option value="">Meal</option>
-                    <option value="Breakfast">Breakfast</option>
-                    <option value="Lunch">Lunch</option>
-                    <option value="Dinner">Dinner</option>
-                    <option value="Snack">Snack</option>
-                    <option value="Pre-workout">Pre-workout</option>
-                    <option value="Post-workout">Post-workout</option>
-                  </select>
-                  <button type="button" onClick={() => removeFood(i)} className="text-muted hover:text-danger text-sm font-black transition px-2">x</button>
-                </div>
-                <textarea value={entry.description} onChange={(e) => updateFood(i, "description", e.target.value)} placeholder="What did you eat?" rows={2} className={inputClass + " resize-none"} />
-              </div>
-            ))}
           </div>
 
           {/* Notes */}
