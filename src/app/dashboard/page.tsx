@@ -62,6 +62,7 @@ export default function DashboardPage() {
   if (!auth || auth.role !== "client") return null;
 
   const mergedWhoop: WhoopData = {
+    ...whoopData,
     recovery: whoopData.recovery ?? log?.whoop_json?.recovery,
     strain: whoopData.strain ?? log?.whoop_json?.strain,
     sleep: whoopData.sleep ?? log?.whoop_json?.sleep,
@@ -72,7 +73,10 @@ export default function DashboardPage() {
       <Nav role="client" />
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-5">
         <div className="flex flex-col gap-4">
-          <h1 className="text-2xl font-black">Dashboard</h1>
+          <div>
+            <h1 className="text-2xl font-black">Dashboard</h1>
+            <p className="text-xs font-bold text-muted/60 mt-1">Auto-refreshes every 2 hrs for accuracy</p>
+          </div>
           <DateSelector date={date} onChange={setDate} />
         </div>
 

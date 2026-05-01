@@ -17,7 +17,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const PASSWORDS: Record<string, UserRole> = {
-  pass: "client",
+  war: "client",
   tin: "coach",
 };
 

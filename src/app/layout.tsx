@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TinTin — Fitness Coaching",
-  description: "Daily tracking dashboard for client and coach",
+  title: "Project WAR by TIN",
+  description: "Fitness coaching dashboard",
 };
 
 export default function RootLayout({

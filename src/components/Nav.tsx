@@ -32,7 +32,7 @@ export default function Nav({ role }: NavProps) {
       <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Link href={role === "coach" ? "/coach" : "/dashboard"} className="font-black text-base mr-3">
-            <span className="text-accent">WAR</span>
+            <span className="text-white">PROJECT </span><span className="text-accent">WAR</span>
           </Link>
           {links.map((link) => (
             <Link

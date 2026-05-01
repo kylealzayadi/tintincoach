@@ -10,7 +10,7 @@ import {
   getCoachNotesByDate,
   addCoachNote,
 } from "@/lib/store";
-import type { DailyLog, CoachNote } from "@/lib/types";
+import type { DailyLog, CoachNote, WhoopData } from "@/lib/types";
 import Nav from "@/components/Nav";
 import DateSelector from "@/components/DateSelector";
 import MacroCards from "@/components/MacroCards";
@@ -30,9 +30,11 @@ export default function CoachPage() {
   const [log, setLog] = useState<DailyLog | null>(null);
   const [notes, setNotes] = useState<CoachNote[]>([]);
   const [recentLogs, setRecentLogs] = useState<DailyLog[]>([]);
+  const [whoopDays, setWhoopDays] = useState<Record<string, WhoopData>>({});
   const [newNote, setNewNote] = useState("");
   const [posting, setPosting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [lastViewed] = useState(() => {
     if (typeof window === "undefined") return null;
     const ts = localStorage.getItem("tintin_coach_last_viewed");
@@ -44,6 +46,16 @@ export default function CoachPage() {
     if (!auth) { router.replace("/login"); return; }
     if (auth.role !== "coach") { router.replace("/dashboard"); }
   }, [auth, router]);
+
+  const fetchWhoop = useCallback(async () => {
+    try {
+      const res = await fetch("/api/whoop/data");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.days) setWhoopDays(data.days);
+      }
+    } catch { /* WHOOP not connected */ }
+  }, []);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -59,15 +71,22 @@ export default function CoachPage() {
     setLog(logData);
     setNotes(notesData);
     setRecentLogs(trendsData);
+    setLastRefresh(new Date());
     setLoading(false);
   }, [date]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+    fetchWhoop();
+  }, [loadData, fetchWhoop]);
 
   useEffect(() => {
-    const interval = setInterval(loadData, REFRESH_INTERVAL);
+    const interval = setInterval(() => {
+      loadData();
+      fetchWhoop();
+    }, REFRESH_INTERVAL);
     return () => clearInterval(interval);
-  }, [loadData]);
+  }, [loadData, fetchWhoop]);
 
   async function handleSubmitNote(e: React.FormEvent) {
     e.preventDefault();
@@ -81,6 +100,15 @@ export default function CoachPage() {
 
   if (!auth || auth.role !== "coach") return null;
 
+  const dateStr = format(date, "yyyy-MM-dd");
+  const whoopForDay = whoopDays[dateStr] ?? {};
+  const mergedWhoop: WhoopData = {
+    ...whoopForDay,
+    recovery: whoopForDay.recovery ?? log?.whoop_json?.recovery,
+    strain: whoopForDay.strain ?? log?.whoop_json?.strain,
+    sleep: whoopForDay.sleep ?? log?.whoop_json?.sleep,
+  };
+
   return (
     <div className="min-h-screen pb-8">
       <Nav role="coach" />
@@ -88,30 +116,36 @@ export default function CoachPage() {
         <div className="flex flex-col gap-4">
           <div>
             <h1 className="text-2xl font-black">Coach View</h1>
-            {lastViewed && (
-              <p className="text-xs font-bold text-muted mt-1">
-                Last viewed: {format(new Date(lastViewed), "MMM d, h:mm a")}
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+              {lastViewed && (
+                <p className="text-xs font-bold text-muted">
+                  Last viewed: {format(new Date(lastViewed), "MMM d, h:mm a")}
+                </p>
+              )}
+              <p className="text-xs font-bold text-muted/60">
+                Auto-refreshes every 2 hrs for accuracy
+                {lastRefresh && <> &middot; Last: {format(lastRefresh, "h:mm a")}</>}
               </p>
-            )}
+            </div>
           </div>
           <DateSelector date={date} onChange={setDate} />
         </div>
 
         {loading ? (
           <p className="text-muted font-bold text-sm">Loading...</p>
-        ) : !log ? (
+        ) : !log && !whoopForDay.recovery ? (
           <div className="bg-card border-2 border-border rounded-2xl p-8 text-center">
             <p className="text-muted font-bold text-lg">No data logged for this day</p>
           </div>
         ) : (
           <>
-            <MacroCards log={log} />
-            <WhoopCard data={log.whoop_json ?? {}} />
-            <FoodList food={log.food_json ?? []} />
-            <ExerciseList exercises={log.exercise_json ?? []} />
-            <GearList gear={log.gear_json ?? []} />
+            {log && <MacroCards log={log} />}
+            <WhoopCard data={mergedWhoop} />
+            {log && <FoodList food={log.food_json ?? []} />}
+            {log && <ExerciseList exercises={log.exercise_json ?? []} />}
+            {log && <GearList gear={log.gear_json ?? []} />}
 
-            {log.client_notes && (
+            {log?.client_notes && (
               <div className="bg-card border-2 border-border rounded-2xl p-4">
                 <h3 className="text-xs font-black text-muted uppercase tracking-wider mb-2">Client Notes</h3>
                 <p className="text-sm font-bold whitespace-pre-wrap text-white">{log.client_notes}</p>
