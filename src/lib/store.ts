@@ -35,14 +35,25 @@ export async function upsertLog(payload: {
   meals_json: MealMacros[];
   client_notes: string | null;
 }): Promise<DailyLog | null> {
-  const { data } = await supabase
+  const existing = await getLogByDate(payload.date);
+
+  const row = {
+    ...payload,
+    whoop_json: existing?.whoop_json && Object.keys(payload.whoop_json).length === 0
+      ? existing.whoop_json
+      : payload.whoop_json,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
     .from("daily_logs")
-    .upsert(
-      { ...payload, updated_at: new Date().toISOString() },
-      { onConflict: "date" }
-    )
+    .upsert(row, { onConflict: "date" })
     .select()
     .single();
+
+  if (error) {
+    console.error("upsertLog error:", error);
+  }
   return data;
 }
 
