@@ -48,11 +48,6 @@ const SCHEDULE: Record<string, DaySchedule> = {
   },
 };
 
-const CYCLE_BASED = [
-  { name: "Testosterone 150mg + Glutathione 300mg", route: "IM", freq: "E3D", anchor: "Mon Apr 13 @ 3 PM" },
-  { name: "Arimidex 0.5mg", route: "Oral", freq: "E2D", anchor: "Sat Apr 25 @ 8 AM" },
-];
-
 const SUPPLEMENTS = {
   Morning: [
     "Re-Lyte Electrolytes — 1 scoop",
@@ -170,16 +165,6 @@ export default function GearProtocol() {
         )}
       </div>
 
-      {/* Cycle-based */}
-      <div className="border-t border-border pt-2">
-        <Label text="Cycle-Based (rotating)" color="text-cyan" />
-        {CYCLE_BASED.map((c) => (
-          <div key={c.name} className="flex flex-wrap items-baseline gap-x-2 mb-1">
-            <span className="text-[11px] font-bold text-white">{c.name}</span>
-            <span className="text-[10px] font-bold text-muted">{c.route} · {c.freq} · from {c.anchor}</span>
-          </div>
-        ))}
-      </div>
 
       {/* Supplements toggle */}
       <div className="border-t border-border pt-2">
