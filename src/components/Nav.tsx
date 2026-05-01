@@ -49,12 +49,23 @@ export default function Nav({ role }: NavProps) {
           ))}
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-muted uppercase tracking-wider">{role}</span>
+          <span
+            className="text-lg font-black uppercase tracking-wider animate-rainbow"
+            style={{
+              backgroundImage: "linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00aaff, #8800ff, #ff00ff, #ff0000)",
+              backgroundSize: "200% 100%",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            {role}
+          </span>
           <button
             onClick={handleSignOut}
-            className="text-xs font-bold text-muted hover:text-danger transition"
+            className="bg-accent hover:bg-accent-hover text-white rounded-xl px-4 py-2 text-sm font-black uppercase tracking-wider transition-all hover:shadow-[0_0_20px_var(--color-accent-glow)] active:scale-95"
           >
-            Out
+            Log Out
           </button>
         </div>
       </div>

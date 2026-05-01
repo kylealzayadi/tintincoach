@@ -52,6 +52,23 @@ interface DayData {
   recovery?: number;
   strain?: number;
   sleep?: number;
+  resting_heart_rate?: number;
+  hrv?: number;
+  spo2?: number;
+  skin_temp?: number;
+  avg_heart_rate?: number;
+  max_heart_rate?: number;
+  calories_burned?: number;
+  sleep_performance?: number;
+  sleep_efficiency?: number;
+  sleep_consistency?: number;
+  respiratory_rate?: number;
+  light_sleep?: number;
+  deep_sleep?: number;
+  rem_sleep?: number;
+  awake_time?: number;
+  disturbances?: number;
+  sleep_cycles?: number;
 }
 
 export async function GET() {
@@ -109,6 +126,9 @@ export async function GET() {
       if (!days[dayStr]) days[dayStr] = {};
       if (cycle.score) {
         days[dayStr].strain = Math.round(cycle.score.strain * 100) / 100;
+        days[dayStr].avg_heart_rate = cycle.score.average_heart_rate;
+        days[dayStr].max_heart_rate = cycle.score.max_heart_rate;
+        days[dayStr].calories_burned = Math.round(cycle.score.kilojoule / 4.184);
       }
     }
   }
@@ -122,6 +142,10 @@ export async function GET() {
       if (!days[dayStr]) days[dayStr] = {};
       if (rec.score) {
         days[dayStr].recovery = rec.score.recovery_score;
+        days[dayStr].resting_heart_rate = rec.score.resting_heart_rate;
+        days[dayStr].hrv = Math.round(rec.score.hrv_rmssd_milli * 10) / 10;
+        days[dayStr].spo2 = Math.round(rec.score.spo2_percentage * 10) / 10;
+        days[dayStr].skin_temp = Math.round(rec.score.skin_temp_celsius * 10) / 10;
       }
     }
   }
@@ -134,10 +158,23 @@ export async function GET() {
       if (!cycle) continue;
       const dayStr = getDayForCycle(cycle);
       if (!days[dayStr]) days[dayStr] = {};
+      const ms2hrs = (ms: number) => Math.round((ms / 1000 / 60 / 60) * 10) / 10;
       if (s.score?.stage_summary) {
-        const totalMs = s.score.stage_summary.total_in_bed_time_milli -
-          s.score.stage_summary.total_awake_time_milli;
-        days[dayStr].sleep = Math.round((totalMs / 1000 / 60 / 60) * 10) / 10;
+        const ss = s.score.stage_summary;
+        const totalSleep = ss.total_in_bed_time_milli - ss.total_awake_time_milli;
+        days[dayStr].sleep = ms2hrs(totalSleep);
+        days[dayStr].light_sleep = ms2hrs(ss.total_light_sleep_time_milli);
+        days[dayStr].deep_sleep = ms2hrs(ss.total_slow_wave_sleep_time_milli);
+        days[dayStr].rem_sleep = ms2hrs(ss.total_rem_sleep_time_milli);
+        days[dayStr].awake_time = ms2hrs(ss.total_awake_time_milli);
+        days[dayStr].disturbances = ss.disturbance_count;
+        days[dayStr].sleep_cycles = ss.sleep_cycle_count;
+      }
+      if (s.score) {
+        days[dayStr].sleep_performance = s.score.sleep_performance_percentage;
+        days[dayStr].sleep_efficiency = Math.round(s.score.sleep_efficiency_percentage * 10) / 10;
+        days[dayStr].sleep_consistency = s.score.sleep_consistency_percentage;
+        days[dayStr].respiratory_rate = Math.round(s.score.respiratory_rate * 10) / 10;
       }
     }
   }

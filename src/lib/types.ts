@@ -30,6 +30,24 @@ export interface WhoopData {
   recovery?: number;
   strain?: number;
   sleep?: number;
+  // Detailed breakdown
+  resting_heart_rate?: number;
+  hrv?: number;
+  spo2?: number;
+  skin_temp?: number;
+  avg_heart_rate?: number;
+  max_heart_rate?: number;
+  calories_burned?: number;
+  sleep_performance?: number;
+  sleep_efficiency?: number;
+  sleep_consistency?: number;
+  respiratory_rate?: number;
+  light_sleep?: number;
+  deep_sleep?: number;
+  rem_sleep?: number;
+  awake_time?: number;
+  disturbances?: number;
+  sleep_cycles?: number;
 }
 
 export interface DailyLog {

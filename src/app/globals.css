@@ -34,3 +34,12 @@ select {
 * {
   -webkit-tap-highlight-color: transparent;
 }
+
+@keyframes rainbow-flow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.animate-rainbow {
+  animation: rainbow-flow 3s linear infinite;
+}
