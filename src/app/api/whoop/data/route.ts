@@ -25,29 +25,23 @@ async function whoopFetch(path: string, accessToken: string) {
   return res.json();
 }
 
-function toLocalDate(utcIso: string, offsetStr: string): string {
+function utcToLocal(utcIso: string, offsetStr: string): Date {
   const d = new Date(utcIso);
   const match = offsetStr.match(/^([+-])(\d{2}):(\d{2})$/);
-  if (!match) return utcIso.slice(0, 10);
+  if (!match) return d;
   const sign = match[1] === "+" ? 1 : -1;
   const offsetMs = sign * (parseInt(match[2]) * 60 + parseInt(match[3])) * 60000;
-  const local = new Date(d.getTime() + offsetMs);
-  return local.toISOString().slice(0, 10);
+  return new Date(d.getTime() + offsetMs);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function findCycleForDate(records: any[], targetDate: string) {
-  for (const cycle of records) {
-    const offset = cycle.timezone_offset || "+00:00";
-    const startLocal = toLocalDate(cycle.start, offset);
-    if (cycle.end) {
-      const endLocal = toLocalDate(cycle.end, offset);
-      if (targetDate >= startLocal && targetDate <= endLocal) return cycle;
-    } else {
-      if (targetDate >= startLocal) return cycle;
-    }
-  }
-  return null;
+function localDateStr(utcIso: string, offsetStr: string): string {
+  return utcToLocal(utcIso, offsetStr).toISOString().slice(0, 10);
+}
+
+interface DayData {
+  recovery?: number;
+  strain?: number;
+  sleep?: number;
 }
 
 export async function GET(request: NextRequest) {
@@ -71,51 +65,89 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Not connected to WHOOP" }, { status: 401 });
   }
 
-  const { searchParams } = new URL(request.url);
-  const date = searchParams.get("date");
-
   const [recoveryData, cycleData, sleepData] = await Promise.all([
-    whoopFetch(`/v2/recovery?limit=10`, accessToken),
-    whoopFetch(`/v2/cycle?limit=10`, accessToken),
-    whoopFetch(`/v2/activity/sleep?limit=10`, accessToken),
+    whoopFetch("/v2/recovery?limit=14", accessToken),
+    whoopFetch("/v2/cycle?limit=14", accessToken),
+    whoopFetch("/v2/activity/sleep?limit=14", accessToken),
   ]);
 
-  let recovery: number | undefined;
-  let strain: number | undefined;
-  let sleep: number | undefined;
+  // Build a map of cycle_id → local end date (the "day" the cycle represents)
+  const days: Record<string, DayData> = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cycleById: Record<number, any> = {};
 
-  if (date && cycleData?.records) {
-    const cycle = findCycleForDate(cycleData.records, date);
-
-    if (cycle?.score) {
-      strain = Math.round(cycle.score.strain * 100) / 100;
-    }
-
-    if (cycle && recoveryData?.records) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const rec = recoveryData.records.find((r: any) => r.cycle_id === cycle.id);
-      if (rec?.score) {
-        recovery = rec.score.recovery_score;
+  if (cycleData?.records) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const cycle of cycleData.records as any[]) {
+      cycleById[cycle.id] = cycle;
+      const offset = cycle.timezone_offset || "+00:00";
+      // The "day" a cycle belongs to is the date of end in local time,
+      // or if still open (no end), use the start date + 1 day
+      let dayStr: string;
+      if (cycle.end) {
+        dayStr = localDateStr(cycle.end, offset);
+      } else {
+        const startLocal = utcToLocal(cycle.start, offset);
+        const nextDay = new Date(startLocal.getTime() + 86400000);
+        dayStr = nextDay.toISOString().slice(0, 10);
       }
-    }
 
-    if (cycle && sleepData?.records) {
-      // Find the primary (non-nap) sleep for this cycle
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sleepRecord = sleepData.records.find((s: any) => s.cycle_id === cycle.id && !s.nap);
-      if (sleepRecord?.score?.stage_summary) {
-        const totalMs = sleepRecord.score.stage_summary.total_in_bed_time_milli -
-          sleepRecord.score.stage_summary.total_awake_time_milli;
-        sleep = Math.round((totalMs / 1000 / 60 / 60) * 10) / 10;
+      if (!days[dayStr]) days[dayStr] = {};
+
+      if (cycle.score) {
+        days[dayStr].strain = Math.round(cycle.score.strain * 100) / 100;
       }
     }
   }
 
-  const response = NextResponse.json({
-    connected: true,
-    requestedDate: date,
-    whoop: { recovery, strain, sleep },
-  });
+  if (recoveryData?.records) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const rec of recoveryData.records as any[]) {
+      const cycle = cycleById[rec.cycle_id];
+      if (!cycle) continue;
+      const offset = cycle.timezone_offset || "+00:00";
+      let dayStr: string;
+      if (cycle.end) {
+        dayStr = localDateStr(cycle.end, offset);
+      } else {
+        const startLocal = utcToLocal(cycle.start, offset);
+        const nextDay = new Date(startLocal.getTime() + 86400000);
+        dayStr = nextDay.toISOString().slice(0, 10);
+      }
+
+      if (!days[dayStr]) days[dayStr] = {};
+      if (rec.score) {
+        days[dayStr].recovery = rec.score.recovery_score;
+      }
+    }
+  }
+
+  if (sleepData?.records) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const s of sleepData.records as any[]) {
+      if (s.nap) continue;
+      const cycle = cycleById[s.cycle_id];
+      if (!cycle) continue;
+      const offset = cycle.timezone_offset || s.timezone_offset || "+00:00";
+      let dayStr: string;
+      if (cycle.end) {
+        dayStr = localDateStr(cycle.end, offset);
+      } else {
+        const startLocal = utcToLocal(cycle.start, offset);
+        const nextDay = new Date(startLocal.getTime() + 86400000);
+        dayStr = nextDay.toISOString().slice(0, 10);
+      }
+
+      if (!days[dayStr]) days[dayStr] = {};
+      if (s.score?.stage_summary) {
+        const totalMs = s.score.stage_summary.total_in_bed_time_milli -
+          s.score.stage_summary.total_awake_time_milli;
+        days[dayStr].sleep = Math.round((totalMs / 1000 / 60 / 60) * 10) / 10;
+      }
+    }
+  }
+
+  const response = NextResponse.json({ connected: true, days });
 
   for (const cookie of newCookies) {
     response.cookies.set(cookie.name, cookie.value, {

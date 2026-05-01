@@ -3,11 +3,24 @@
 import { useState, useEffect } from "react";
 
 interface WhoopConnectProps {
-  onData?: (data: { recovery?: number; strain?: number; sleep?: number }) => void;
+  onSync?: () => void;
   date?: string;
 }
 
-export default function WhoopConnect({ onData, date }: WhoopConnectProps) {
+function getWhoopCache(): Record<string, { recovery?: number; strain?: number; sleep?: number }> {
+  try {
+    return JSON.parse(localStorage.getItem("tintin_whoop") || "{}");
+  } catch {
+    return {};
+  }
+}
+
+export function getWhoopForDate(date: string): { recovery?: number; strain?: number; sleep?: number } | null {
+  const cache = getWhoopCache();
+  return cache[date] ?? null;
+}
+
+export default function WhoopConnect({ onSync, date }: WhoopConnectProps) {
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -17,6 +30,7 @@ export default function WhoopConnect({ onData, date }: WhoopConnectProps) {
     const params = new URLSearchParams(window.location.search);
     if (params.get("whoop") === "connected") {
       setConnected(true);
+      syncAll();
       window.history.replaceState({}, "", window.location.pathname);
     }
     if (params.get("whoop") === "error") {
@@ -32,33 +46,42 @@ export default function WhoopConnect({ onData, date }: WhoopConnectProps) {
   async function checkConnection() {
     try {
       const res = await fetch("/api/whoop/data");
-      if (res.ok) setConnected(true);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.connected) {
+          setConnected(true);
+          if (data.days) {
+            localStorage.setItem("tintin_whoop", JSON.stringify(data.days));
+          }
+        }
+      }
     } catch { /* not connected */ }
   }
 
-  async function syncData() {
-    if (!date) return;
+  async function syncAll() {
     setLoading(true);
     setError("");
     setStatus("");
     try {
-      const res = await fetch(`/api/whoop/data?date=${date}`);
+      const res = await fetch("/api/whoop/data");
       if (!res.ok) {
         if (res.status === 401) {
           setConnected(false);
           setError("WHOOP session expired. Reconnect.");
+        } else {
+          setError("Sync failed");
         }
         setLoading(false);
         return;
       }
       const data = await res.json();
-      const w = data.whoop;
-      const hasData = w && (w.recovery != null || w.strain != null || w.sleep != null);
-      if (hasData && onData) {
-        onData(w);
-        setStatus("Synced!");
+      if (data.days) {
+        const dayCount = Object.keys(data.days).length;
+        localStorage.setItem("tintin_whoop", JSON.stringify(data.days));
+        setStatus(`Synced ${dayCount} days`);
+        if (onSync) onSync();
       } else {
-        setStatus(`No WHOOP data for ${date}`);
+        setStatus("No WHOOP data found");
       }
     } catch {
       setError("Failed to fetch WHOOP data");
@@ -82,14 +105,17 @@ export default function WhoopConnect({ onData, date }: WhoopConnectProps) {
             <span className="w-2.5 h-2.5 rounded-full bg-success" />
             WHOOP
           </span>
+          <button
+            onClick={syncAll}
+            disabled={loading}
+            className="text-xs font-black text-accent hover:text-accent-hover transition disabled:opacity-50 active:scale-95"
+          >
+            {loading ? "Syncing..." : "Sync All"}
+          </button>
           {date && (
-            <button
-              onClick={syncData}
-              disabled={loading}
-              className="text-xs font-black text-accent hover:text-accent-hover transition disabled:opacity-50 active:scale-95"
-            >
-              {loading ? "Syncing..." : "Sync"}
-            </button>
+            <span className="text-xs font-bold text-muted">
+              {getWhoopForDate(date) ? "Data available" : "No data for this day"}
+            </span>
           )}
         </>
       )}

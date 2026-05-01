@@ -8,7 +8,7 @@ import { getLogByDate, upsertLog } from "@/lib/local-store";
 import type { GearEntry, FoodEntry, ExerciseEntry, WhoopData } from "@/lib/types";
 import Nav from "@/components/Nav";
 import DateSelector from "@/components/DateSelector";
-import WhoopConnect from "@/components/WhoopConnect";
+import WhoopConnect, { getWhoopForDate } from "@/components/WhoopConnect";
 
 const inputClass = "w-full bg-background border-2 border-border rounded-xl px-3 py-3 text-sm font-bold focus:outline-none focus:border-accent focus:shadow-[0_0_15px_var(--color-accent-glow)] transition-all placeholder:text-muted/50";
 
@@ -217,10 +217,13 @@ export default function LogPage() {
               <h2 className="text-xs font-black text-muted uppercase tracking-wider">WHOOP</h2>
               <WhoopConnect
                 date={format(date, "yyyy-MM-dd")}
-                onData={(data) => {
-                  if (data.recovery != null) setWhoopRecovery(String(data.recovery));
-                  if (data.strain != null) setWhoopStrain(String(data.strain));
-                  if (data.sleep != null) setWhoopSleep(String(data.sleep));
+                onSync={() => {
+                  const w = getWhoopForDate(format(date, "yyyy-MM-dd"));
+                  if (w) {
+                    if (w.recovery != null) setWhoopRecovery(String(w.recovery));
+                    if (w.strain != null) setWhoopStrain(String(w.strain));
+                    if (w.sleep != null) setWhoopSleep(String(w.sleep));
+                  }
                 }}
               />
             </div>

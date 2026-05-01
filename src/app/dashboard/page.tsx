@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { format, subDays } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getLogByDate, getLogsByDateRange, getCoachNotesByDate } from "@/lib/local-store";
-import type { DailyLog, CoachNote } from "@/lib/types";
+import type { DailyLog, CoachNote, WhoopData } from "@/lib/types";
 import Nav from "@/components/Nav";
 import DateSelector from "@/components/DateSelector";
 import MacroCards from "@/components/MacroCards";
@@ -15,9 +15,9 @@ import FoodList from "@/components/FoodList";
 import ExerciseList from "@/components/ExerciseList";
 import CoachNotes from "@/components/CoachNotes";
 import TrendChart from "@/components/TrendChart";
-import WhoopConnect from "@/components/WhoopConnect";
+import WhoopConnect, { getWhoopForDate } from "@/components/WhoopConnect";
 
-const REFRESH_INTERVAL = 2 * 60 * 60 * 1000; // 2 hours
+const REFRESH_INTERVAL = 2 * 60 * 60 * 1000;
 
 export default function DashboardPage() {
   const { auth } = useAuth();
@@ -26,36 +26,37 @@ export default function DashboardPage() {
   const [log, setLog] = useState<DailyLog | null>(null);
   const [notes, setNotes] = useState<CoachNote[]>([]);
   const [recentLogs, setRecentLogs] = useState<DailyLog[]>([]);
+  const [whoopData, setWhoopData] = useState<WhoopData>({});
 
   useEffect(() => {
-    if (!auth) {
-      router.replace("/login");
-      return;
-    }
-    if (auth.role === "coach") {
-      router.replace("/coach");
-    }
+    if (!auth) { router.replace("/login"); return; }
+    if (auth.role === "coach") { router.replace("/coach"); }
   }, [auth, router]);
 
-  function loadData() {
+  const loadData = useCallback(() => {
     const dateStr = format(date, "yyyy-MM-dd");
     setLog(getLogByDate(dateStr));
     setNotes(getCoachNotesByDate(dateStr));
     const today = format(new Date(), "yyyy-MM-dd");
     const weekAgo = format(subDays(new Date(), 7), "yyyy-MM-dd");
     setRecentLogs(getLogsByDateRange(weekAgo, today));
-  }
-
-  useEffect(() => {
-    loadData();
+    setWhoopData(getWhoopForDate(dateStr) ?? {});
   }, [date]);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   useEffect(() => {
     const interval = setInterval(loadData, REFRESH_INTERVAL);
     return () => clearInterval(interval);
-  }, [date]);
+  }, [loadData]);
 
   if (!auth || auth.role !== "client") return null;
+
+  const mergedWhoop: WhoopData = {
+    recovery: whoopData.recovery ?? log?.whoop_json?.recovery,
+    strain: whoopData.strain ?? log?.whoop_json?.strain,
+    sleep: whoopData.sleep ?? log?.whoop_json?.sleep,
+  };
 
   return (
     <div className="min-h-screen pb-8">
@@ -66,16 +67,12 @@ export default function DashboardPage() {
           <DateSelector date={date} onChange={setDate} />
         </div>
 
-        <WhoopConnect date={format(date, "yyyy-MM-dd")} />
+        <WhoopConnect date={format(date, "yyyy-MM-dd")} onSync={loadData} />
 
         <MacroCards log={log} />
-
-        <WhoopCard data={log?.whoop_json ?? {}} />
-
+        <WhoopCard data={mergedWhoop} />
         <FoodList food={log?.food_json ?? []} />
-
         <ExerciseList exercises={log?.exercise_json ?? []} />
-
         <GearList gear={log?.gear_json ?? []} />
 
         {log?.client_notes && (
