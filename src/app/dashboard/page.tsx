@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type RefObject } from "react";
 import { format, subDays } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -32,6 +32,7 @@ export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<"overlay" | "expanded">("overlay");
   const [activeMeal, setActiveMeal] = useState<string | null>(null);
   const mealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const expandedRef = useRef<HTMLDivElement>(null);
 
   function selectMeal(meal: string | null) {
     if (mealTimer.current) clearTimeout(mealTimer.current);
@@ -44,6 +45,12 @@ export default function DashboardPage() {
   useEffect(() => {
     return () => { if (mealTimer.current) clearTimeout(mealTimer.current); };
   }, []);
+
+  useEffect(() => {
+    if (expanded && expandedRef.current) {
+      setTimeout(() => expandedRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    }
+  }, [expanded]);
 
   useEffect(() => {
     if (!auth) { router.replace("/login"); return; }
@@ -300,9 +307,13 @@ export default function DashboardPage() {
             </div>
 
             {/* Inline expanded content */}
-            {expanded === "whoop" && <WhoopCard data={mergedWhoop} />}
-            {expanded === "gear" && <GearProtocol date={date} />}
-            {expanded === "notes" && <CoachNotes notes={notes} role="client" onUpdate={loadData} />}
+            {expanded && (
+              <div ref={expandedRef}>
+                {expanded === "whoop" && <WhoopCard data={mergedWhoop} />}
+                {expanded === "gear" && <GearProtocol date={date} />}
+                {expanded === "notes" && <CoachNotes notes={notes} role="client" onUpdate={loadData} />}
+              </div>
+            )}
 
             {log?.client_notes && (
               <div className="bg-card border-2 border-border rounded-2xl p-4">

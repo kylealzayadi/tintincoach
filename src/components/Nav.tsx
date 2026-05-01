@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/auth-context";
-import { getAllUnreadNotes, getAllUnreadReplies } from "@/lib/store";
+import { getAllUnreadNotes, getAllUnreadReplies, markNotesReadByClient, markRepliesReadByCoach } from "@/lib/store";
 import type { UserRole, CoachNote } from "@/lib/types";
 
 interface NavProps {
@@ -117,7 +117,13 @@ export default function Nav({ role, unreadCount = 0 }: NavProps) {
                     notes.map((note) => (
                       <button
                         key={note.id}
-                        onClick={() => {
+                        onClick={async () => {
+                          if (role === "client") {
+                            await markNotesReadByClient([note.id]);
+                          } else {
+                            await markRepliesReadByCoach([note.id]);
+                          }
+                          setNotes((prev) => prev.filter((n) => n.id !== note.id));
                           setOpen(false);
                           const target = role === "coach" ? "/coach" : "/dashboard";
                           if (pathname !== target) router.push(target);
